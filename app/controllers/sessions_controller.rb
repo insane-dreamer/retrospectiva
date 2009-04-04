@@ -5,6 +5,7 @@ class SessionsController < ApplicationController
   before_filter :verify_secure_authentication, :only => [:secure]
 
   def new
+    login_by_http_auth if HTTP_AUTH_ONLY
     render :action => 'logged_in' unless User.current.public?
   end
 
@@ -45,6 +46,20 @@ class SessionsController < ApplicationController
     def verify_secure_authentication
       unless RetroCM[:general][:user_management][:secure_auth]
         render :nothing => true 
+      end
+    end
+
+    def login_by_http_auth
+      # Apache sets the secure HTTP_X_REMOTE_USER if a user has logged in using Digest authentication 
+      # or REMOTE_USER if on a LAN with NTLM
+      # set HTTP_AUTH_ONLY in config.rb
+      auth = (request.env['HTTP_X_REMOTE_USER'] || request.env['REMOTE_USER'])
+      user = User.find_by_username(auth)
+      if user
+        successful_login(user, "Welcome, #{auth}.")
+      else
+        flash[:notice] = "No user #{auth} found. Accessing as guest."
+        redirect_to home_path
       end
     end
 
