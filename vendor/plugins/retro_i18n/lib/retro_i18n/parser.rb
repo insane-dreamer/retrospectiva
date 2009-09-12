@@ -4,15 +4,15 @@ module RetroI18n
     
     def initialize(*paths)
       @paths = paths
-      @patterns = { :simple => {}, :dynamic => {} }
+      @patterns = {}
       parse!
     end
     
     def files
       @files ||= paths.map do |path| 
-        Dir.glob(path + '/**/*.*')
+        Dir[path]
       end.flatten.select do |file|
-        File.file?(file) && File.readable?(file) 
+        File.file?(file) && File.readable?(file) && File.size(file) < 10.megabyte
       end.uniq.sort
     end    
 
@@ -29,19 +29,17 @@ module RetroI18n
       def parse!
         files.each do |file|          
           File.read(file).scan(TRANSLATION).each do |match|
-            next unless match.first            
+            next unless match.first
             store_pattern!(match.first, file)
-          end 
+          end
         end
       end
 
       def store_pattern!(string, file)
-        string = clean_pattern(string)
-        pattern_type = string =~ DYNAMIC ? :dynamic : :simple
-        reference = File.expand_path(file).gsub(/^#{Regexp.escape(RAILS_ROOT)}\/?/, '')
-        
-        @patterns[pattern_type][string] ||= []
-        @patterns[pattern_type][string] << reference
+        string    = clean_pattern(string)
+        reference = File.expand_path(file).gsub(/^#{Regexp.escape(RAILS_ROOT)}\/?/, '')        
+        @patterns[string] ||= []
+        @patterns[string] << reference
       end
 
       def clean_pattern(string)
@@ -49,13 +47,9 @@ module RetroI18n
       end
     
       TRANSLATION = %r!
-        [N]?_
+        \b[N]?_
         [\s\(]+?
         [^\\]?((?:\'.*?[^\\]\')|(?:\".*?[^\\]\"))
-      !x
-    
-      DYNAMIC = %r!
-        (?:\#\{.+?\})|(^\(.*\)$)
       !x
     
   end  

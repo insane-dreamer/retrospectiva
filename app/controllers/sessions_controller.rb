@@ -3,6 +3,7 @@ class SessionsController < ApplicationController
 
   prepend_before_filter :reset_session, :only => [:destroy]
   before_filter :verify_secure_authentication, :only => [:secure]
+  skip_filter :store_back_to_path
 
   def new
     login_by_http_auth if HTTP_AUTH_ONLY
@@ -30,7 +31,7 @@ class SessionsController < ApplicationController
   protected
     
     def successful_login(user, message = nil)
-      back_to = session[:back_to].present? ? session[:back_to] : home_path 
+      back_to = session[:back_to].present? ? session[:back_to] : root_path
       message ||= _('Login was successful.')
 
       session[:user_id] = user.id

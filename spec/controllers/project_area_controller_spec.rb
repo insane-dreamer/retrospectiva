@@ -18,7 +18,7 @@ describe ProjectAreaController do
     end
     
     def authorize?(action_name = 'index', request_params = {})
-      ProjectAreaController.authorize?(action_name, request_params, @user, @project)
+      controller.class.authorize?(action_name, request_params, @user, @project)
     end    
 
     it 'should find the requested menu-item' do
@@ -84,116 +84,68 @@ describe ProjectAreaController do
 
 end
 
-describe "Authorization" do
-  controller_name :search
-  
+
+describe 'real-world behaviour' do
+  controller_name :milestones
+    
   before do
-    @project = mock_current_project! :enabled_modules => [], :name => 'Retro'
-    @projects = [@project]
-    @projects.stub!(:find).and_return(@project)
-    @user = mock_current_user! :name => 'Doesnt Matter'
-    @user.stub!(:active_projects).and_return(@projects)
-    @user.stub!(:has_access?).and_return(true)      
-  end       
-  
-  def do_get
-    get :index, :project_id => 'one'
+    @user = mock_current_user! :name => 'Public', :public? => true, :admin? => false, :permitted? => false
+    @project = mock_model Project, 
+      :name => 'Retro', :short_name => 'retro',
+      :enabled_modules => ['milestones']
+
+    @projects = [@project]    
+    @projects.stub!(:active).and_return(@projects)
+    @projects.stub!(:find).and_return(@project)    
+
+    @milestones = []
+    @milestones.stub!(:in_default_order).and_return(@milestones)
+    @milestones.stub!(:active_on).and_return(@milestones)
+    @project.stub!(:milestones).and_return(@milestones)
   end
   
-  describe 'if a user is already logged in' do
-    
-    before do
-      @user.stub!(:public?).and_return(false)
-    end
-    
-    describe 'and if user is permitted to see page' do
-      before do
-        controller.class.stub!(:authorize?).and_return(true)          
-      end
-      
-      it 'should display the page' do
-        do_get
-        response.should be_success
-      end
-
-      it 'should not store request path' do
-        do_get
-        session[:back_to].should be_nil
-      end
-    end    
-
-    describe 'and if user is not permitted to see page' do
-      before do
-        rescue_action_in_public!
-        controller.stub!(:consider_all_requests_local).and_return(false)
-        controller.class.stub!(:authorize?).and_return(false)          
-      end
-      
-      it 'should display forbidden page' do
-        do_get
-        response.code.should == '403'
-        response.should render_template(RAILS_ROOT + '/app/views/rescue/403.html.erb')
-      end
-
-      it 'should not store request path' do
-        do_get
-        session[:back_to].should be_nil
-      end
-    end    
-
+  def do_get(name = 'retro')
+    get :index, :project_id => name
+  end
+  
+  it 'should find the project' do
+    Project.should_receive(:find_by_short_name!).and_return(@project)
+    @user.stub!(:projects).and_return(@projects)
+    do_get
   end
 
-  describe 'if a user is NOT logged in' do
+  describe 'if a project genuinely does not exist' do
     
-    before do
-      @user.stub!(:public?).and_return(true)
-    end
-          
-    describe 'and if user is permitted to see page' do
-      before do
-        controller.class.stub!(:authorize?).and_return(true)          
-      end
-      
-      it 'should display the page' do
-        do_get
-        response.should be_success
-      end
-
-      it 'should not store request path' do
-        do_get
-        session[:back_to].should be_nil
-      end
+    it 'should raise an error (404)' do
+      lambda { do_get('not-there') }.should raise_error(ActiveRecord::RecordNotFound)      
     end    
+    
+  end
 
-    describe 'and if user is not permitted to see page' do
-      before do
-        controller.class.stub!(:authorize?).and_return(false)          
-      end
-              
-      it 'should redirect to login page' do
+  describe 'if a project exists' do
+   
+    before do
+      Project.stub!(:find_by_short_name!).and_return(@project)      
+      @user.stub!(:projects).and_return(@projects)
+    end
+    
+    it 'should find the project within active user-projects' do
+      @user.should_receive(:projects).and_return(@projects)
+      @projects.should_receive(:active).and_return(@projects)
+      @projects.should_receive(:find).with('retro').and_return(@project)
+      do_get
+    end
+    
+    describe 'if the project cannot be found within active user-projects' do
+      
+      it 'should redirect to login' do
+        @projects.should_receive(:find).with('retro').and_return(nil)
         do_get
         response.should redirect_to(login_path)
       end
-
-      it 'should store the request path' do
-        do_get
-        session[:back_to].should == '/projects/one/search'
-      end
       
-      describe 'and if relative URL root is set' do
-        
-        before do
-          ActionController::Base.stub!(:relative_url_root).and_return('/dev')
-        end
-        
-        it 'should store the request path correctly' do
-          do_get
-          session[:back_to].should == '/dev/projects/one/search'
-        end
-        
-      end
-      
-    end    
-
-  end
+    end       
+  
+  end  
 end
+

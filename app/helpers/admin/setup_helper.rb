@@ -1,5 +1,5 @@
 #--
-# Copyright (C) 2007 Dimitrij Denissenko
+# Copyright (C) 2009 Dimitrij Denissenko
 # Please read LICENSE document for more information.
 #++
 module Admin::SetupHelper
@@ -13,25 +13,11 @@ module Admin::SetupHelper
       label += ' ' + link
     end
     
-    if setting.is_a?(RetroCM::BooleanSetting) 
-      setting_tag(setting) + ' ' + f.click_choice(label, :for => tag_id_for(setting)) + '<br/>' 
-    else
-      f.label_tag(label, :for => tag_id_for(setting)) + ' ' + setting_tag(setting)
-    end
-  end
-
-  def error_messages
-    return '' if @errors.blank?
-
-    title = "<h2>#{_('Configuration could not be saved')}</h2>"
-    intro = "<p>#{_('There were problems')}:</p>"
-    items = content_tag :ul, @errors.map {|key, message| "<li>#{key}: #{message}</li>" }
-    
-    "<div id=\"errorExplanation\" class=\"errorExplanation\">#{title}\n#{intro}\n#{items}</div>"
+    f.label_tag(label, :for => tag_id_for(setting)) + ' ' + setting_tag(setting)
   end
 
   def setting_tag(setting)    
-    tag = case setting
+    case setting
     when RetroCM::TextSetting
       text_setting_tag(setting)
     when RetroCM::StringSetting
@@ -47,13 +33,8 @@ module Admin::SetupHelper
     else
       value_for(setting)
     end
-    wrap_error_tag(tag, @errors && @errors[setting.path]) 
   end
 
-  def wrap_error_tag(html_tag, has_error)
-    has_error ? field_error_proc.call(html_tag, self) : html_tag
-  end
-  
   def string_setting_tag(setting)
     value = value_for(setting).to_s
     text_field_tag(name_for(setting), h(value), options_for_string_setting_tag(setting))
@@ -68,14 +49,14 @@ module Admin::SetupHelper
     text_area_tag(name_for(setting), h(value_for(setting).to_s), options_for(setting).merge(:rows => 5, :cols => 120 ))
   end
 
-  def boolean_setting_tag(setting)
-    check_box_tag(name_for(setting), 1, value_for(setting), options_for(setting)) +
-      hidden_field_tag(name_for(setting), 0, :id => tag_id_for(setting) + '_hidden')
+  def boolean_setting_tag(setting)    
+    choices = options_for_select([[_('Yes'), 1], [_('No'), 0]], value_for(setting) ? 1 : 0)
+    select_tag name_for(setting), choices, options_for(setting)  
   end
 
   def select_setting_tag(setting)
-    options = options_for_select(setting.options, value_for(setting))
-    select_tag(name_for(setting), options, options_for(setting))  
+    choices = options_for_select(setting.options, value_for(setting))
+    select_tag name_for(setting), choices, options_for(setting)  
   end
 
   protected

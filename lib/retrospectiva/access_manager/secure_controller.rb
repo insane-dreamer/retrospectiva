@@ -33,7 +33,6 @@ module Retrospectiva
         # should be granted or refused.
         def authorize?(action_name, request_params = {}, user = User.current, project = nil)
           action_name = action_name.to_s
-          
           if user.blank?
             false
           elsif user.admin?
@@ -144,12 +143,37 @@ module Retrospectiva
           end
 
           def authenticate_user
+            authenticate_user_via_session || 
+              authenticate_user_via_http_basic ||
+              authenticate_user_via_private_key
+          end
+
+          def authenticate_user_via_session
             return nil unless session[:user_id]
             
             logger.debug("Authenticating user with ID: #{session[:user_id]}") if logger
             User.active.find_by_id session[:user_id], :include => {:groups => :projects}              
           end
-                    
+
+          def authenticate_user_via_http_basic
+            case request.format
+            when Mime::XML, Mime::RSS
+              authenticate_with_http_basic do |identifier, password| 
+                User.authenticate(:username => identifier, :password => password)
+              end
+            else
+              nil
+            end
+          end
+                
+          def authenticate_user_via_private_key
+            if request.format and request.format.rss? and params[:private].present?
+              User.active.find_by_private_key(params[:private])      
+            else
+              nil
+            end
+          end
+                
           def failed_authentication!
             logger.debug("Authentication failed. Redirect to login.") if logger
             reset_session

@@ -1,4 +1,4 @@
-require 'md5'
+require 'digest/md5'
 
 module ApplicationHelper
   include FormatHelper
@@ -6,30 +6,31 @@ module ApplicationHelper
   include NavigationHelper
   include PlusForms::Helper
   
-  def error_messages_for(*args)
-    options = args.extract_options!.reverse_merge(:object_name => _("(#{args.first}_record)"))
-    super(*(args << options))
-  end
-
   def page_title(title = nil, options = {})
     title ||= @page_title
     title = escape_once(title) unless options[:escape] == false
     content_tag('div', title, :class => 'page-title')  
   end
 
-  def content_styles(*args)    
-    [args].flatten.each do |style_class|
-      content_style(style_class)
+  def content_styles(*styles)    
+    @content_styles ||= [] 
+    if styles.any?
+      @content_styles += Array(styles)
+      @content_styles.uniq!
     end
-    layout_markers[:content_styles]
+    " #{@content_styles.join(' ')}"
   end
-  
-  def content_style(style_class)    
-    layout_markers[:content_styles] << " #{style_class}"
-  end
+  alias_method :content_style, :content_styles
   
   def slim_page
     content_style('slim')
+  end
+
+  def auto_discover_feed(type = :rss, url_options = {}, tag_options = {})
+    url_options.reverse_merge!(:format => type)
+    content_for :header do
+      auto_discovery_link_tag type, url_options, tag_options
+    end
   end
   
   def image_spacer(options = {})    
@@ -107,32 +108,12 @@ module ApplicationHelper
     text_field_tag name, ( value || params[name] ), options.merge(:autocomplete => 'off')
   end
 
-
   def retro_in_place_editor(field_id, options = {})
-    function =  "new Ajax.RetroInPlaceEditor("
-    function << "'#{field_id}', "
-    function << url_for(options[:url]).to_json
-
-    callback = "Form.serialize(form)"
-    if protect_against_forgery?
-      callback += " + '&authenticity_token=' + encodeURIComponent('#{form_authenticity_token}')"
-    end
+    js_options = {}
+    js_options['externalControl'] = "#{field_id}-in-place-editor-external-control".to_json    
+    js_options['text'] = options[:text].to_s.to_json if options[:text] 
     
-    js_options = options.only(:rows, :cols, :size).stringify_keys.merge(
-      'callback' => "function(form) { return #{callback} }",
-      'okText' => _('Save').to_json,
-      'cancelText' => _('Cancel').to_json,
-      'loadingText' => _('Loading...').to_json,
-      'savingText' => _('Saving...').to_json,
-      'externalControl' => "#{field_id}-in-place-editor-external-control".to_json
-    )
-    if options[:text]
-      js_options['text'] = options[:text].to_s.to_json 
-    end
-    function << (', ' + options_for_javascript(js_options))    
-    function << ')'
-
-    javascript_tag(function)
+    in_place_editor 'Ajax.RetroInPlaceEditor', field_id, options, js_options
   end
 
   def toggle_pagination(page, term = params[:term])
@@ -149,6 +130,10 @@ module ApplicationHelper
     else
       super
     end
+  end
+
+  def options_for_destroy_link(confirmation_suffix = nil)
+    { :method => :delete, :confirm => _('Are you sure?') + confirmation_suffix.to_s }
   end
 
   protected
@@ -169,14 +154,18 @@ module ApplicationHelper
 
     def gravatar(email, options = {})
       size = options.delete(:size) || 40
-      options.reverse_merge!(:class => 'frame')
-      image_tag "http://www.gravatar.com/avatar/#{MD5::md5(email)}.png?s=#{size}", options
+      options.reverse_merge!(:class => 'frame', :alt => '')
+      image_tag "http://www.gravatar.com/avatar/#{Digest::MD5.hexdigest(email.to_s.downcase)}.png?s=#{size}", options
     end
 
   private
     
+    def enkode_token_tag(tag)
+      enkode(tag)      
+    end
+    
     def token_tag
-      protect_against_forgery? ? enkode(super) : ''
+      protect_against_forgery? ? enkode_token_tag(super) : ''
     end  
   
     def random_enkode_logic
@@ -211,6 +200,31 @@ module ApplicationHelper
          )
       }]
       kodes[rand(kodes.size)]      
+    end
+
+    def in_place_editor(js_class, field_id, options = {}, js_options = {})
+      function =  "new #{js_class}("
+      function << "'#{field_id}', "
+      function << url_for(options[:url]).to_json
+  
+      callback = "Form.serialize(form)"
+      if protect_against_forgery?
+        callback += " + '&authenticity_token=' + encodeURIComponent('#{form_authenticity_token}')"
+      end
+      
+      js_options.stringify_keys!
+      js_options.reverse_merge!(options.only(:rows, :cols, :size).stringify_keys)
+      js_options.reverse_merge!(
+        'callback' => "function(form) { return #{callback} }",
+        'okText' => _('Save').to_json,
+        'cancelText' => _('Cancel').to_json,
+        'loadingText' => _('Loading...').to_json,
+        'savingText' => _('Saving...').to_json
+      )
+
+      function << (', ' + options_for_javascript(js_options))    
+      function << ')'
+      javascript_tag(function)      
     end
   
 end

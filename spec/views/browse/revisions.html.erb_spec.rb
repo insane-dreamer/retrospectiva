@@ -32,7 +32,7 @@ describe "/browse/revisions.html.erb" do
 
   it 'should display a link to browse in the content-header' do
     do_render
-    response.should have_tag('div.content-header a[href=?]', "/projects/#{@project.id}/browse/", 'Browse')
+    response.should have_tag('div.content-header a[href=?]', "/projects/#{@project.id}/browse", 'Browse')
     response.should have_tag('div.content-header a[title=?]', "Browse root")
   end
   
@@ -44,7 +44,7 @@ describe "/browse/revisions.html.erb" do
   it 'should render the pagination' do
     template.should_receive(:will_paginate).and_return('<div>PAGINATION</div>')
     do_render
-    response.should have_tag('table thead tr.navigation') do
+    response.should have_tag('table thead tr') do
       with_tag 'div', 'PAGINATION'
     end
   end

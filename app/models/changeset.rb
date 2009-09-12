@@ -9,7 +9,7 @@ class Changeset < ActiveRecord::Base
   has_and_belongs_to_many :projects, :uniq => true
 
   validates_presence_of :repository_id, :revision
-  validates_uniqueness_of :revision, :scope => :repository_id
+  validates_uniqueness_of :revision, :case_sensitive => false, :scope => :repository_id
 
   after_create :create_changeset_project_relations!
   after_create :update_project_revision_cache!
@@ -103,6 +103,10 @@ class Changeset < ActiveRecord::Base
     project.changesets.find :first, 
       :conditions => ['changesets.created_at < ?', created_at],
       :order => 'changesets.created_at DESC'
+  end
+
+  def serialize_only
+    [:id, :author, :revision, :log, :created_at]
   end
 
   protected

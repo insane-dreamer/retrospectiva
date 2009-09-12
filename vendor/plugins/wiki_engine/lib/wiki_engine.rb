@@ -1,3 +1,5 @@
+require 'wiki_engine/engines'
+
 module WikiEngine
   @@default_engine = nil
 
@@ -23,27 +25,20 @@ module WikiEngine
       text.blank? || engine.blank? ? '' : supported_engines[engine].markup(text)
     end
   
-    def link_all(text, engine = nil, &block)
-      engine = select_engine(engine)
-      text.blank? || engine.blank? ? '' : supported_engines[engine].link_all(text, &block)
-    end
-
-    def link_pattern(engine = nil)
-      engine = select_engine(engine)
-      engine.blank? ? %r{} : supported_engines[engine].link_pattern
-    end
-
     # This method can be called in environment.rb to override the default engine
     def default_engine=(engine)
       engine = engine.to_s
       if !self.supported_engines.include?(engine)
         raise "The selected WIKI engine '#{engine}' is invalid! Supported engines: #{supported_engines.keys.inspect}"
-      elsif self.supported_engines[engine].blank?      
+      elsif supported_engines[engine]
+        @@default_engine = engine
+      elsif supported_engines.values.compact.any?
+        @@default_engine = supported_engines.values.first
+      else
         raise "The selected WIKI default engine '#{engine}' is missing! " + 
-                "Please install required GEM or library or switch to another engine. " + 
-                  "Available engines: #{available_engine_names.inspect}" 
+              "Please install required GEM or library or switch to another engine. " + 
+              "Available engines: #{available_engine_names.inspect}" 
       end
-      @@default_engine = engine  
     end
     alias_method :default_markup=, :default_engine=
 
@@ -53,24 +48,24 @@ module WikiEngine
     end
     alias_method :default_markup, :default_engine
 
-    # Initializes the WikiENgine. Looks for available libraries. A default engine can be specified.
+    # Initializes the WikiEngine. Looks for available libraries. A default engine can be specified.
     def init(default = :retro)
       begin
-        require 'redcloth_ng'
+        require 'wiki_engine/redcloth'
         self.supported_engines['textile'] = TextileEngine.new
-        require 'retro_markup'
+        require 'wiki_engine/retro'
         self.supported_engines['retro'] = RetroEngine.new
       rescue LoadError; end
       
       begin
-        require 'bluecloth'
+        require 'rdiscount'
         self.supported_engines['markdown'] = MarkDownEngine.new
       rescue LoadError; end
       
       begin
         require 'rdoc/markup/simple_markup'
         require 'rdoc/markup/simple_markup/to_html'
-        require 'rdoc_support'
+        require 'wiki_engine/rdoc'
         self.supported_engines['rdoc'] = RDocEngine.new
       rescue LoadError; end
       
@@ -78,15 +73,28 @@ module WikiEngine
     end
 
     def with_text_parts_only(text, &block)
-      result, tokenizer = [], HTML::Tokenizer.new(text)
-      while token = tokenizer.next
-        node = HTML::Node.parse(nil, 0, 0, token, false)
-        result << (node.is_a?(HTML::Text) ? yield(token) : token)
-      end
-      result.join      
+      tokenizer = HTML::Tokenizer.new(text)
+      open_pre  = false
+      
+      returning [] do |result|           
+        
+        while token = tokenizer.next
+          node = HTML::Node.parse(nil, 0, 0, token, false)
+          
+          if !open_pre and node.is_a?(HTML::Text)
+            result << yield(token)
+          else
+            if node.is_a?(HTML::Tag) and node.name == 'pre'
+              open_pre = node.closing.nil? 
+            end
+            result << token
+          end
+        end
+
+      end.join      
     end    
 
-    private
+    private      
 
       def select_engine(engine = nil)
         engine && supported_engines[engine] ? engine : default_engine        

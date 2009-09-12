@@ -1,5 +1,5 @@
 #--
-# Copyright (C) 2008 Dimitrij Denissenko
+# Copyright (C) 2009 Dimitrij Denissenko
 # Please read LICENSE document for more information.
 #++
 module TicketPropertyGlobal
@@ -10,7 +10,7 @@ module TicketPropertyGlobal
       has_many :tickets
 
       validates_presence_of :name
-      validates_uniqueness_of :name    
+      validates_uniqueness_of :name, :case_sensitive => false   
       
       include InstanceMethods
     end    
@@ -26,9 +26,13 @@ module TicketPropertyGlobal
     end
   end
 
-  module InstanceMethods  
+  module InstanceMethods    
+    def serialize_only
+      [:id, :name]
+    end
+
     protected
-      
+            
       # Refuse to manually unset the default_value
       def before_validation_on_update
         if not default_value? and default_value_was

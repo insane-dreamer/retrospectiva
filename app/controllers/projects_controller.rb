@@ -1,35 +1,38 @@
 class ProjectsController < ApplicationController  
-
-  enable_private_rss! :only => [:index, :show]
   before_filter :find_projects
  
   def index
-    if User.current.public? && @projects.empty?
-      flash.keep
-      redirect_to login_path
-    elsif request.format.rss? 
-      render_index_rss
-    elsif @projects.size == 1
-      flash.keep
-      redirect_to @projects.first.path_to_first_menu_item      
+    respond_to do |format|    
+      if User.current.public? && @projects.empty?
+        flash.keep
+        format.html { redirect_to login_path }
+        format.all  { head :forbidden }        
+      elsif @projects.size == 1
+        flash.keep
+        format.html { redirect_to @projects.first.path_to_first_menu_item }
+        format.xml  { head :found, :location => project_path(@projects.first, :format => 'xml') }              
+      else
+        format.html
+        format.rss  { render_index_rss }
+        format.xml  { render :xml => @projects }              
+      end    
     end    
   end
   
   def show
-    @project = @projects.find(params[:id])    
-    if @project.blank? 
-      redirect_to projects_path
-    elsif request.format.rss?
-      render_show_rss(@project)
-    else      
-      redirect_to @project.path_to_first_menu_item
+    @project = @projects.find! params[:id]
+  
+    respond_to do |format|
+      format.html { redirect_to @project.path_to_first_menu_item }
+      format.rss  { render_show_rss(@project) }
+      format.xml  { render :xml => @project }
     end
-  end  
-
+  end
+  
   protected
 
     def find_projects
-      @projects = User.current.active_projects
+      @projects = User.current.projects.active
       @projects.reject! do |project|
         project_has_no_accessible_menu_items?(project)
       end
@@ -49,7 +52,7 @@ class ProjectsController < ApplicationController
     end
 
     def render_index_rss
-      @records = User.current.active_projects.inject([]) do |result, project|                
+      @records = User.current.projects.active.inject([]) do |result, project|                
         find_feedable_records(project).each do |record|
           result << [record, project]
         end        

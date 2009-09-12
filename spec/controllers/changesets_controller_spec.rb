@@ -25,7 +25,7 @@ describe ChangesetsController do
 
     it "should find changesets" do
       @proxy.should_receive(:paginate).
-        with(:per_page=>nil, :page=>nil, :order=>'changesets.created_at DESC', :include=>[:user]).
+        with(:per_page=>nil, :page=>nil, :total_entries=>nil, :order=>'changesets.created_at DESC', :include=>[:user]).
         and_return(@changesets)
       do_get
     end
@@ -35,7 +35,7 @@ describe ChangesetsController do
 
   describe "handling GET /changesets.rss" do
     before(:each) do
-      Changeset.stub!(:to_rss)
+      Changeset.stub!(:to_rss).and_return("RSS")
       @proxy.stub!(:paginate).and_return(@changesets)
     end
     
@@ -50,13 +50,13 @@ describe ChangesetsController do
   
     it "should find changesets" do
       @proxy.should_receive(:paginate).
-        with(:per_page=>10, :page=>1, :order=>'changesets.created_at DESC', :include=>[:user]).
+        with(:per_page=>10, :total_entries=>10, :page=>1, :order=>'changesets.created_at DESC', :include=>[:user]).
         and_return(@changesets)
       do_get
     end
 
     it "should render the found milestones as RSS" do
-      Changeset.should_receive(:to_rss).with(@changesets).and_return("RSS")
+      Changeset.should_receive(:to_rss).with(@changesets, {}).and_return("RSS")
       do_get :completed => '1'
       response.body.should == "RSS"
       response.content_type.should == "application/rss+xml"

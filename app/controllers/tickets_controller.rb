@@ -1,5 +1,5 @@
 #--
-# Copyright (C) 2008 Dimitrij Denissenko
+# Copyright (C) 2009 Dimitrij Denissenko
 # Please read LICENSE document for more information.
 #++
 class TicketsController < ProjectAreaController
@@ -27,8 +27,6 @@ class TicketsController < ProjectAreaController
 
   require_user 'modify_summary', 'modify_content', 'modify_change_content'
 
-  enable_private_rss! :only => :index
-  
   verify        :xhr => true, :only => [:modify_summary, :modify_content, :modify_change_content]
 
   before_filter :find_report, :only => [:index, :search]
@@ -45,12 +43,17 @@ class TicketsController < ProjectAreaController
   before_filter :find_and_verify_attachment, :only => :download
     
   def index
-    @tickets = paginate_tickets(request.format.rss? ? 10 : params[:per_page])    
-    respond_with_defaults
+    @tickets = paginate_tickets(request.format.rss? ? 10 : params[:per_page], request.format.rss? ? 10 : nil)    
+    
+    respond_to do |format|
+      format.html
+      format.rss  { render_rss(Ticket) }
+      format.xml  { render :xml => @tickets }
+    end
   end
 
   def search
-    @tickets = paginate_tickets(nil)
+    @tickets = paginate_tickets(nil, Ticket.per_page)
     respond_to(:js)
   end
 
@@ -59,35 +62,56 @@ class TicketsController < ProjectAreaController
     @next_ticket = @ticket.next_ticket(filters)
     @previous_ticket = @ticket.previous_ticket(filters)    
     @ticket_change.attributes = { :author => cached_user_attribute(:name, 'Anonymous'), :email => cached_user_attribute(:email) }
+
+    respond_to do |format|
+      format.html
+      format.rss  { render_rss(Ticket, [@ticket], :limit => 30) }
+      format.xml  { render :xml => @ticket.to_xml(:include => @ticket.serialize_including + [:changes]) }
+    end
   end
 
   def new
     @ticket.author = cached_user_attribute(:name, 'Anonymous')
     @ticket.email = cached_user_attribute(:email)
+
+    respond_to do |format|
+      format.html # new.html.erb
+      format.xml  { render :xml => @ticket }
+    end
   end
 
   def create
     @ticket.protected_attributes = params[:ticket]
     @ticket.author_host = request.remote_ip
     @ticket.toggle_subscriber(User.current) if params[:watch_ticket]
-    if @ticket.save
-      cache_user_attributes!(:name => @ticket.author, :email => @ticket.email)
-      flash[:notice] = _('Ticket was successfully created.')
-      redirect_to project_ticket_path(Project.current, @ticket)
-    else
-      render :action => 'new'
-    end
+
+    respond_to do |format|
+      if @ticket.save
+        cache_user_attributes!(:name => @ticket.author, :email => @ticket.email)
+        flash[:notice] = _('Ticket was successfully created.')
+        format.html { redirect_to [Project.current, @ticket] }
+        format.xml  { render :xml => @ticket, :status => :created, :location => [Project.current, @ticket] }
+      else
+        format.html { render :action => "new" }
+        format.xml  { render :xml => @ticket.errors, :status => :unprocessable_entity }
+      end
+    end    
   end
 
   def update
-    if @ticket_change.save
-      @ticket.toggle_subscriber(User.current) if params[:watch_ticket]
-      cache_user_attributes!(:name => @ticket_change.author, :email => @ticket_change.email)
-      flash[:notice] = _('Ticket was successfully updated.')
-      redirect_to project_ticket_path(Project.current, @ticket, :anchor => "ch#{@ticket_change.id}")
-    else
-      render :action => 'show'
-    end
+    respond_to do |format|
+      if @ticket_change.save
+        @ticket.toggle_subscriber(User.current) if params[:watch_ticket]
+        cache_user_attributes!(:name => @ticket_change.author, :email => @ticket_change.email)
+        flash[:notice] = _('Ticket was successfully updated.')
+
+        format.html { redirect_to project_ticket_path(Project.current, @ticket, :anchor => "ch#{@ticket_change.id}") }
+        format.xml  { head :ok }        
+      else
+        format.html { render :action => 'show' }
+        format.xml  { render :xml => @ticket.errors, :status => :unprocessable_entity }
+      end
+    end    
   end
 
   def download
@@ -100,25 +124,38 @@ class TicketsController < ProjectAreaController
     else
       _('You stopped watching this ticket.')
     end
-    redirect_to project_ticket_path(Project.current, @ticket)
+    
+    respond_to do |format|
+      format.html { redirect_to [Project.current, @ticket] }
+      format.xml  { head :ok }        
+    end    
   end
 
   def destroy
     if @ticket.destroy
       flash[:notice] = _('Ticket was successfully deleted.')
     end
-    redirect_to project_tickets_path(Project.current)
+
+    respond_to do |format|
+      format.html { redirect_to project_tickets_path(Project.current) }
+      format.xml  { head :ok }
+    end
   end
 
   def destroy_change
     @ticket_change = Project.current.ticket_changes.find params[:id], :include => :ticket
     @ticket = @ticket_change.ticket
+
     if @ticket_change.destroy
       updated_at = (@ticket.changes.last || @ticket).created_at
       @ticket.update_timestamp(updated_at)
       flash[:notice] = _('Ticket change was successfully deleted.')
     end
-    redirect_to project_ticket_path(Project.current, @ticket_change.ticket)
+
+    respond_to do |format|
+      format.html { redirect_to [Project.current, @ticket_change.ticket] }
+      format.xml  { head :ok }
+    end
   end
 
   def modify_summary
@@ -204,23 +241,30 @@ class TicketsController < ProjectAreaController
 
   private
 
-    def paginate_tickets(per_page)
-      conditions = PlusFilter::Conditions.new(@filters.conditions) do |c|
-        c << ['tickets.updated_at > ?', @report.since] if @report && @report.since
-        c << Retro::Search.conditions(params[:term], *Ticket.searchable_column_names)
-      end.to_a
-
+    def paginate_tickets(per_page, total_entries = nil)
       Project.current.tickets.paginate(
         :page => params[:page],
         :per_page => per_page,
-        :conditions => conditions,
+        :total_entries => total_entries,
+        :conditions => conditions_for_paginate,
         :include => Ticket.default_includes,
-        :joins => @filters.joins,
+        :joins => ( request.format.rss? ? nil : @filters.joins ),
         :order => [ticket_order, 'tickets.updated_at DESC', 'ticket_changes.created_at'].compact.join(', '))
     end
 
+    def conditions_for_paginate
+      return nil if request.format.rss?
+      
+      PlusFilter::Conditions.new(@filters.conditions) do |c|
+        c << ['tickets.updated_at > ?', @report.since] if @report && @report.since
+        c << Retro::Search.conditions(params[:term], *Ticket.searchable_column_names)
+      end.to_a
+    end
+
     def ticket_order
-      case params[:group]
+      return nil if request.format.rss?
+
+      case params[:by]
       when 'user'
         'assigned_users_tickets.name'
       when 'priority'

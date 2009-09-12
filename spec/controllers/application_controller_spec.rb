@@ -131,13 +131,14 @@ describe ApplicationController do
 end
 
 describe 'Format rendering and fallback' do
-  controller_name :changesets
+  controller_name :milestones
 
   before do
-    rescue_action_in_public!
-    @project = permit_access_with_current_project! :name => 'Any', :to_param => '1'        
-    @changesets = [stub_model(Changeset, :to_param => '1', :project => @project)]
-    @project.stub!(:changesets).and_return(@changesets)
+    rescue_action_in_public!     
+    @milestones = []
+    @milestones.stub!(:in_default_order).and_return(@milestones)
+    @milestones.stub!(:active_on).and_return(@milestones)
+    @project = permit_access_with_current_project! :name => 'Any', :to_param => '1', :milestones => @milestones         
   end
   
   it 'should render HTML if no specific format requested' do
@@ -153,14 +154,12 @@ describe 'Format rendering and fallback' do
   end
 
   it 'should return 406 Not Acceptable if requested format is not part of respond-to' do
-    get :index, :project_id => @project.to_param, :format => 'xml'
+    get :index, :project_id => @project.to_param, :format => 'text'
     response.code.should == '406'
   end
   
   it 'should return 406 Not Acceptable if requested format is invalid (no respond-to specified)' do
-    @changesets.should_receive(:find_by_revision!).and_return(@changesets.first)
-    @changesets.should_receive(:find).twice.and_return(nil)
-    get :show, :project_id => @project.to_param, :id => '1', :format => 'xml'
+    get :index, :project_id => @project.to_param, :id => '1', :format => 'text'
     response.code.should == '406'
   end
 
@@ -178,12 +177,16 @@ describe 'RSS access via private key' do
     
   before do
     @user = mock_current_user! :name => 'Agent', :public? => true, :admin? => false, :permitted? => false
-    @project = mock_model(Project, :name => 'Retro')
-    @projects = [@project]
+    @project = mock_model(Project, :name => 'Retro', :short_name => 'retro')
+
+    Project.stub!(:find_by_short_name!).and_return(@project)
+    @projects = [@project]    
+    @projects.stub!(:active).and_return(@projects)
     @projects.stub!(:find).and_return(@project)
-    @user.stub!(:active_projects).and_return(@projects)
+    @user.stub!(:projects).and_return(@projects)
 
     @milestones = []
+    @milestones.stub!(:in_default_order).and_return(@milestones)
     @milestones.stub!(:active_on).and_return(@milestones)
     @project.stub!(:milestones).and_return(@milestones)
 
@@ -206,17 +209,12 @@ describe 'RSS access via private key' do
   
   describe 'if RSS content is requested' do
  
-    it 'should refuse authorisation without a private key' do
+    it 'should fallback to HTTP-Basic if user cannot be authenticated via private key' do
       bypass_rescue
-      lambda { get :index, :project_id => '1', :format => 'rss' }.should raise_error(RetroAM::NoAuthorizationError)
+      get :index, :project_id => '1', :format => 'rss'
+      response.code.should == '401'
     end
 
-    it 'should refuse authorisation to methods that are not using the filter' do
-      bypass_rescue
-      User.should_not_receive(:find_by_private_key)
-      lambda { get :new, :project_id => '1', :format => 'rss', :private => '[PKEY]' }.should raise_error(RetroAM::NoAuthorizationError)
-    end
- 
     describe 'if a valid private key is submitted' do
       
       before do
@@ -277,7 +275,7 @@ describe 'Caching user attributes' do
     it 'should behave correctly' do
       cookies['retrospectiva__c'].should be_nil
       do_post
-      cookies['retrospectiva__c'].should  == "---+%0Aname%3A+Agent%0Aemail%3A+agent%40mail.com%0A"
+      cookies['retrospectiva__c'].should  == "--- \nname: Agent\nemail: agent@mail.com\n"
     end    
 
   end
@@ -285,7 +283,7 @@ describe 'Caching user attributes' do
   describe 'retrieving' do
     
     before do
-      cookies['retrospectiva__c'] = "---+%0Aname%3A+Author%0Aemail%3A+something%40mail.com%0A"      
+      cookies['retrospectiva__c'] = "--- \nname: Author\nemail: something@mail.com\n" 
     end
 
     def do_get
@@ -329,5 +327,179 @@ describe 'Caching user attributes' do
       end            
     end    
     
+  end
+end
+
+
+
+
+describe 'Back-to path storage' do
+  controller_name :search
+
+  before do
+    permit_access_with_current_project!
+    controller.stub!(:load_channels).and_return([])
+    @user = mock_current_user! :name => 'Doesnt Matter' 
+  end       
+  
+  def do_get
+    get :index, :project_id => 'one'
+  end
+  
+  describe 'if user is logged-in' do
+    before do      
+      @user.stub!(:public?).and_return(false)
+    end
+    
+    it 'should NOT store the request path' do
+      do_get
+      session[:back_to].should be_nil
+    end
+    
+  end
+
+  describe 'if user is not logged-in' do
+    before do
+      @user.stub!(:public?).and_return(true)
+    end
+    
+    it 'should store the request path' do
+      do_get
+      session[:back_to].should == '/projects/one/search'
+    end
+    
+    describe 'and if relative URL root is set' do
+      
+      before do
+        ActionController::Base.stub!(:relative_url_root).and_return('/dev')
+      end
+      
+      it 'should store the request path correctly' do
+        do_get
+        session[:back_to].should == '/dev/projects/one/search'
+      end
+      
+    end
+    
+  end  
+end
+
+describe "Authorization" do
+  controller_name :milestones
+  
+  before do
+    @milestones = [stub_model(Milestone, :name => '1.0', :updated_at => 2.days.ago)]
+    @milestones.stub!(:in_default_order).and_return(@milestones)
+    @milestones.stub!(:active_on).and_return(@milestones)
+    @milestones.stub!(:paginate).and_return(@milestones)
+
+    @user    = mock_current_user! :name => 'Doesnt Matter'
+    @project = mock_current_project! :milestones => @milestones, :name => 'Retro'
+    controller.stub!(:find_project).and_return(true)
+  end
+  
+  def do_get(options = {})
+    get :index, options.reverse_merge(:project_id => 'one')
+  end
+  
+  describe 'if a user is already logged in' do
+    
+    before do
+      @user.stub!(:public?).and_return(false)
+    end
+    
+    describe 'and is permitted to see page' do
+      before do
+        controller.class.stub!(:authorize?).and_return(true)          
+      end
+      
+      it 'should display the page (for HTML)' do
+        do_get
+        response.should be_success
+      end
+
+      it 'should display the page (for XML/RSS)' do
+        do_get(:format => 'xml')
+        response.should be_success
+        do_get(:format => 'rss')
+        response.should be_success
+      end
+
+    end    
+
+    describe 'and is not permitted to see page' do
+      before do
+        rescue_action_in_public!
+        controller.stub!(:consider_all_requests_local).and_return(false)
+        controller.class.stub!(:authorize?).and_return(false)          
+      end
+      
+      it 'should return a 403 page (for HTML)' do
+        do_get
+        response.code.should == '403'
+        response.should render_template(RAILS_ROOT + '/app/views/rescue/403.html.erb')
+      end
+
+      it 'should return a 403 head (for XML/RSS)' do
+        do_get(:format => 'xml')
+        response.code.should == '403'
+        response.body.should be_blank
+      end
+
+      it 'should return a 403 head (for RSS)' do
+        do_get(:format => 'rss')
+        response.code.should == '403'
+        response.body.should be_blank
+      end
+
+    end    
+
+  end
+
+  describe 'if a user is NOT logged in' do
+    
+    before do
+      @user.stub!(:public?).and_return(true)
+    end
+          
+    describe 'and is permitted to see page' do
+      
+      before do
+        controller.class.stub!(:authorize?).and_return(true)          
+      end
+      
+      it 'should display the page (for HTML)' do
+        do_get
+        response.should be_success
+      end
+
+      it 'should display the page (for XML/RSS)' do
+        do_get(:format => 'xml')
+        response.should be_success
+        do_get(:format => 'rss')
+        response.should be_success
+      end
+
+    end    
+
+    describe 'and is not permitted to see page' do
+      before do
+        controller.class.stub!(:authorize?).and_return(false)          
+      end
+              
+      it 'should redirect to login page (for HTML)' do
+        do_get
+        response.should redirect_to(login_path)
+      end
+
+      it 'should request HTTP Basic credentials (for XML/RSS)' do
+        do_get(:format => 'xml')
+        response.code.should == '401'
+        do_get(:format => 'rss')
+        response.code.should == '401'
+      end
+      
+    end    
+
   end
 end

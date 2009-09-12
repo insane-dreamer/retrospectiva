@@ -7,6 +7,12 @@ describe User do
     it "should be able to find the public user" do
       User.public_user.should == users(:Public)
     end
+
+    it "should not cache public user" do
+      User.public_user.projects.should == [projects(:retro)]
+      groups(:Default).update_attribute(:access_to_all_projects, true)
+      User.public_user.projects.should == projects(:closed, :retro, :sub)
+    end
   
     describe 'mass-assignement' do
       it 'should only be allowed for [name, plain_password & confirmation]' do
@@ -56,6 +62,10 @@ describe User do
       users(:agent).ticket_changes.should have(1).record
     end
 
+    it "should have many projects" do
+      users(:agent).should have(1).projects
+    end
+
   end
 
 
@@ -74,8 +84,34 @@ describe User do
       @user.should validate_uniqueness_of(:username)
     end
 
-    it "should validate confirmation of plain pasword" do
-      @user.should validate_confirmation_of(:plain_password)
+    it "should validate correct format of username" do
+      @user.username = 'User Name'
+      @user.should have(1).error_on(:username)
+      @user.username = "User\tName"
+      @user.should have(1).error_on(:username)
+      @user.username = 'Username '
+      @user.should have(1).error_on(:username)
+      @user.username = ' Username'
+      @user.should have(1).error_on(:username)
+      @user.username = '@home'
+      @user.should have(:no).error_on(:username)
+      @user.username = 'Username123'
+      @user.should have(:no).error_on(:username)
+      @user.username = 'Username.123!'
+      @user.should have(:no).error_on(:username)
+    end
+
+    it "should validate confirmation of plain password" do      
+      @user.plain_password = 'abcdefgh'
+      @user.should have(1).error_on(:plain_password)
+
+      @user.plain_password = 'abcdefgh'
+      @user.plain_password_confirmation = 'hgfedcba'
+      @user.should have(1).error_on(:plain_password)
+
+      @user.plain_password = 'abcdefgh'
+      @user.plain_password_confirmation = 'abcdefgh'
+      @user.should have(:no).error_on(:plain_password)
     end
     
     it "should validate presence of name" do
@@ -240,16 +276,29 @@ describe User do
       @user.email = 'new@one.com'
     end
 
-    it "should validate presence of plain pasword" do
+    it "should validate presence of plain password" do
       @user.should validate_presence_of(:plain_password)
     end
 
-    it "should validate length of plain pasword (6-40 characters)" do
+    it "should validate length of plain password (6-40 characters)" do
       @user.should validate_length_of(:plain_password, :within => 6..40)
     end
 
-    it "should validate length of plain pasword (6-40 characters)" do
+    it "should validate length of plain password (6-40 characters)" do
       @user.should validate_length_of(:plain_password, :within => 6..40)
+    end
+    
+    it "should validate confirmation of plain password" do      
+      @user.plain_password = 'abcdefgh'
+      @user.should have(1).error_on(:plain_password)
+
+      @user.plain_password = 'abcdefgh'
+      @user.plain_password_confirmation = 'hgfedcba'
+      @user.should have(1).error_on(:plain_password)
+
+      @user.plain_password = 'abcdefgh'
+      @user.plain_password_confirmation = 'abcdefgh'
+      @user.should have(:no).error_on(:plain_password)
     end
     
     describe 'if retrospectiva is set-up to automatically assign new users to certain groups' do
@@ -447,10 +496,12 @@ describe User do
     end
 
     describe 'if path contains a project-ID' do
+
       it 'should extract the ID and try to find the project' do
         Project.should_receive(:find_by_short_name).with('retrospectiva').and_return(projects(:retro))
         @user.has_access?('/projects/retrospectiva/changesets')
       end
+      
     end
 
     it 'should extract the controller and action name and \'ask\' the controller for permission' do

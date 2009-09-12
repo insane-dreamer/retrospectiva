@@ -37,34 +37,13 @@ class ProjectAreaController < ApplicationController
   protected
   
     def find_project
-      Project.current = User.current.active_projects.find(params[:project_id])
-      Project.current || project_not_found!
+      project = Project.find_by_short_name! params[:project_id]      
+      Project.current = User.current.projects.active.find(project.short_name)
     end
     
-    def project_not_found!
-      raise ActiveRecord::RecordNotFound, "Unable to find project '#{params[:project_id]}'"
-    end
-
-    def respond_with_defaults(klass = nil)
-      respond_to do |format|
-        format.html
-        format.rss  { render_rss(klass) }
-      end
-    end
-
-    def render_rss(klass = nil)
-      klass ||= self.class.name.demodulize.gsub(/Controller$/, '').singularize.constantize
-      records = instance_variable_get("@#{klass.name.tableize}".to_sym)
-      render :xml => klass.to_rss(records).to_s, :content_type => 'application/rss+xml'
-    end
-
-    def failed_authorization!
-      if User.current.public? and request.get? and request.format.html?
-        session[:back_to] = "#{ActionController::Base.relative_url_root}#{request.path}"
-        redirect_to login_path
-      else
-        super
-      end
+    def render_rss(klass, records = nil, options = {})
+      records ||= instance_variable_get("@#{klass.name.tableize}".to_sym)
+      render :xml => klass.to_rss(records, options).to_s, :content_type => 'application/rss+xml'
     end
 
 end

@@ -4,22 +4,35 @@ describe TicketFilter::Collection do
 
   before do
     @project = mock_model(Project)
+    @user = mock_model(User, :public? => false)
+    User.stub!(:current).and_return(@user)
     
-    @state = mock_model(Status::State, :name => 'Open')
-    @statuses = [mock_model(Status, :name => 'St1', :state => @state), mock_model(Status, :name => 'St2', :state => @state)]
+    @statuses = [
+      stub_model(Status, :name => 'St1', :state_id => 1), 
+      stub_model(Status, :name => 'St2', :state_id => 1),
+      stub_model(Status, :name => 'St3', :state_id => 2)      
+    ]
     Status.stub!(:find).and_return(@statuses)
 
-    @priorities = [mock_model(Priority, :name => 'Pr1')]
+    @priorities = [stub_model(Priority, :name => 'Pr1')]
     Priority.stub!(:find).and_return(@priorities)
     
-    @milestones = [mock_model(Milestone, :name => 'Mi1')]
+    @milestones = [stub_model(Milestone, :name => 'Mi1')]
     @project.stub!(:milestones).and_return(@milestones)
     @milestones.stub!(:find).and_return(@milestones)      
+    @milestones.stub!(:in_default_order).and_return(@milestones)      
     
-    @ticket_properties = [mock_model(TicketProperty, :name => '1.0.0')]
-    @ticket_property_types = [mock_model(TicketPropertyType, :name => 'Tpt1', :class_name => 'Release', :ticket_properties => @ticket_properties)]
+    @ticket_properties = [stub_model(TicketProperty, :name => '1.0.0')]
+    @ticket_property_types = [stub_model(TicketPropertyType, :name => 'Tpt1', :class_name => 'Release', :ticket_properties => @ticket_properties)]
     @project.stub!(:ticket_property_types).and_return(@ticket_property_types)
     @ticket_property_types.stub!(:find).and_return(@ticket_property_types)      
+  end
+
+  def states(*ids)
+    result = ids.map do |id|
+      Status.state(id)  
+    end
+    ids.size == 1 ? result.first : result
   end
 
   def do_create(params = {})
@@ -39,7 +52,8 @@ describe TicketFilter::Collection do
     end
     
     it 'should find and assign the milestone records' do
-      @milestones.should_receive(:find).with(:all, :order => 'rank').and_return(@milestones)      
+      @milestones.should_receive(:in_default_order).with().and_return(@milestones)      
+      @milestones.should_receive(:find).with(:all).and_return(@milestones)      
       do_create.send(:milestones).should == @milestones
     end
 
@@ -51,8 +65,7 @@ describe TicketFilter::Collection do
     end
 
     it 'should find and assign the states' do
-      @statuses.first.should_receive(:state).and_return(@state)
-      do_create.send(:states).should == [@state]
+      do_create.send(:states).should == states(1, 2)
     end
 
   end
@@ -63,7 +76,6 @@ describe TicketFilter::Collection do
     before do
       @status = @statuses.first
       @ticket_property = @ticket_properties.first
-      User.stub!(:current).and_return(mock_model(User, :public? => false))
     end
            
     it 'should return no params if nothing is selected' do
@@ -93,7 +105,7 @@ describe TicketFilter::Collection do
   describe 'custom params generation' do
     
     before do
-      @s1, @s2 = @statuses
+      @s1, @s2, @s3 = @statuses
       @p1 = @priorities.first
       User.stub!(:current).and_return(mock_model(User, :public? => false))
     end
@@ -104,16 +116,55 @@ describe TicketFilter::Collection do
     end
 
     it 'should allow to exclude an additional element to an existing filter' do
-      do_create(:status => @statuses.map(&:id)).to_params.should == { 'status' => [@s1.id, @s2.id] }
-      do_create(:status => @statuses.map(&:id)).excluding(:status, @s1.id).should == { 'status' => [@s2.id] }
+      do_create(:status => @statuses.map(&:id)).to_params.should == { 'status' => [@s1.id, @s2.id, @s3.id] }
+      do_create(:status => @statuses.map(&:id)).excluding(:status, @s1.id).should == { 'status' => [@s2.id, @s3.id] }
     end
-
+    
     it 'should allow to include new filter' do
       do_create(:priority => @p1.id).including(:status, @s1.id).should == { 'priority' => [@p1.id], 'status' => [@s1.id] }
     end
 
     it 'should allow to remove a filter' do
       do_create(:priority => @p1.id, :status => @s1.id).excluding(:status, @s1.id).should == { 'priority' => [@p1.id] }
+    end
+
+    describe 'whhen nothing is selected (default state)' do
+      
+      it 'should retain defaults when including' do
+        do_create().to_params.should == {}
+        do_create().including(:state, 3).should == { 'state' => [1, 2, 3], 'status' => @statuses.map(&:id)}
+  
+        do_create(:state => '2').to_params.should == { 'state' => [2] }
+        do_create(:state => '2').including(:state, 3).should == { 'state' => [2, 3], 'status' => [@s3.id] }
+      end
+  
+    end
+
+    describe 'when excluding states' do
+
+      it 'should automatically exclude relevant statuses' do
+        do_create().to_params.should == {}
+        do_create().excluding(:state, 2).should == {'state' => [1], 'status' => [@s1.id, @s2.id]}
+      end
+      
+    end
+
+    describe 'when excluding statuses' do
+
+      it 'should automatically exclude all states' do
+        do_create().to_params.should == {}
+        do_create().excluding(:status, @s2.id).should == {'status' => [@s1.id, @s3.id]}
+      end
+
+    end
+
+    describe 'when including statuses' do
+
+      it 'should automatically exclude all states' do
+        do_create(:state => 1).to_params.should == {'state' => [1]}
+        do_create(:state => 1).including(:status, @s3.id).should == {'status' => [@s1.id, @s2.id, @s3.id]}
+      end
+
     end
 
   end

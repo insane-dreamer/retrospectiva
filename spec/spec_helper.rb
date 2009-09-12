@@ -5,6 +5,11 @@ require File.dirname(__FILE__) + "/../config/environment" unless defined?(RAILS_
 require 'spec/autorun'
 require 'spec/rails'
 
+# Requires supporting files with custom matchers and macros, etc,
+# in ./support/ and its subdirectories.
+Dir["#{File.dirname(__FILE__)}/support/**/*.rb"].each {|f| require f}
+Dir["#{File.dirname(__FILE__)}/**/every_*.rb"].each {|f| require f}
+
 Spec::Runner.configure do |config|
   # If you're not using ActiveRecord you should remove these
   # lines, delete config/database.yml and disable :active_record
@@ -42,13 +47,6 @@ Spec::Runner.configure do |config|
   # config.mock_with :rr
   #
   # == Notes
-  # 
+  #
   # For more information take a look at Spec::Runner::Configuration and Spec::Runner
-end
-
-Dir[File.dirname(__FILE__) + "/includes/**/*.rb"].each do |file|
-  require file  
-end
-Dir[File.dirname(__FILE__) + "/**/every_*.rb"].each do |file|
-  require file  
 end

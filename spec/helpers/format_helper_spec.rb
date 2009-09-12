@@ -26,6 +26,17 @@ describe FormatHelper do
         do_format('a text with a [r1a2b3c4d] changeset reference').should == 'a text with a LINK changeset reference'
       end
 
+      it 'should correctly work with multiple references' do
+        helper.should_receive(:format_internal_changeset_link).exactly(3).times.and_return('LINK')
+        do_format('a text with multiple [1a2b] [r1a2] [1a2b] references').should == 'a text with multiple LINK LINK LINK references'
+      end
+
+      it 'should correctly references located at the beginning/end of the document' do
+        helper.should_receive(:format_internal_changeset_link).exactly(3).times.and_return('LINK')
+        do_format('[1a2b] a text with multiple [r1a2] references [1a2b]').should == 'LINK a text with multiple LINK references LINK'
+      end
+
+
       it 'should support numeric references' do
         helper.should_receive(:format_internal_changeset_link).with('123', {}).twice.and_return('LINK')
         do_format('a text with a [123] changeset reference').should == 'a text with a LINK changeset reference'
@@ -94,7 +105,7 @@ describe FormatHelper do
     end    
 
     it 'should rerun a link if criteria is met' do
-      helper.should_receive(:project_changeset_path).with(@project, '1a2b3c4d').and_return('LINK_PATH')
+      helper.should_receive(:project_changeset_path).with(@project, '1a2b3c4d', {}).and_return('LINK_PATH')
       do_format('1a2b3c4d').should == '<a href="LINK_PATH" title="Show changeset 1a2b3c4d">[1a2b3c4d]</a>'
     end    
   end
@@ -142,7 +153,7 @@ describe FormatHelper do
       it 'should search for tickets within all user-accessible projects' do
         RetroCM[:content][:markup].should_receive(:[]).with(:global_ticket_refs).and_return(true)        
         @user.should_receive(:admin?).and_return(true)
-        @user.should_receive(:active_projects).and_return(AssociationProxies::ActiveUserProjects.new(@user))
+        @user.should_receive(:projects).and_return(AssociationProxies::UserProjects.instantiate(@user))
         do_find.should be_nil
       end      
     end
@@ -150,7 +161,7 @@ describe FormatHelper do
     describe 'if global ticket references are disabled' do
       it 'should search for tickets within all user-accessible projects' do
         RetroCM[:content][:markup].should_receive(:[]).with(:global_ticket_refs).and_return(false)
-        @user.should_not_receive(:active_projects)
+        @user.should_not_receive(:projects)
         @project.should_receive(:existing_tickets).and_return(1234 => {:state => 1, :summary => 'S1'})
         do_find.should == @project
       end

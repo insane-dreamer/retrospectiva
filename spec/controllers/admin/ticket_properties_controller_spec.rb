@@ -9,7 +9,7 @@ describe Admin::TicketPropertiesController do
   before do
     permit_access!
     @project = mock_model(Project)
-    Project.stub!(:find_by_short_name).and_return(@project)
+    Project.stub!(:find_by_short_name!).and_return(@project)
     @ticket_properties = [mock_model(TicketPropertyType)]
     @project.stub!(:ticket_property_types).and_return(@ticket_properties)
   end
@@ -23,7 +23,7 @@ describe Admin::TicketPropertiesController do
     it_should_successfully_render_template('index')
 
     it "should find the related project" do
-      Project.should_receive(:find_by_short_name).and_return(@project)
+      Project.should_receive(:find_by_short_name!).and_return(@project)
       do_get
       assigns[:project].should == @project
     end
@@ -55,7 +55,7 @@ describe Admin::TicketPropertiesController do
     it_should_successfully_render_template('new')
 
     it "should find the related project" do
-      Project.should_receive(:find_by_short_name).and_return(@project)
+      Project.should_receive(:find_by_short_name!).and_return(@project)
       do_get
       assigns[:project].should == @project
     end
@@ -91,7 +91,7 @@ describe Admin::TicketPropertiesController do
     end      
 
     it "should find the related project" do
-      Project.should_receive(:find_by_short_name).and_return(@project)
+      Project.should_receive(:find_by_short_name!).and_return(@project)
       do_post
       assigns[:project].should == @project
     end
@@ -148,7 +148,7 @@ describe Admin::TicketPropertiesController do
     it_should_successfully_render_template('edit')
 
     it "should find the related project" do
-      Project.should_receive(:find_by_short_name).and_return(@project)
+      Project.should_receive(:find_by_short_name!).and_return(@project)
       do_get
       assigns[:project].should == @project
     end
@@ -184,7 +184,7 @@ describe Admin::TicketPropertiesController do
     end      
 
     it "should find the related project" do
-      Project.should_receive(:find_by_short_name).and_return(@project)
+      Project.should_receive(:find_by_short_name!).and_return(@project)
       do_put
       assigns[:project].should == @project
     end
@@ -231,8 +231,8 @@ describe Admin::TicketPropertiesController do
   describe "handling DELETE /admin/project_name/ticket_properties/1" do
     
     before do
-      @ticket_property_type = mock_model(TicketPropertyType, :to_param => '1')
-      @ticket_properties.stub!(:destroy).and_return(@ticket_property_type)
+      @ticket_property_type = mock_model(TicketPropertyType, :to_param => '1', :destroy => true)
+      @ticket_properties.stub!(:find).and_return(@ticket_property_type)
     end
 
     def do_delete
@@ -240,13 +240,14 @@ describe Admin::TicketPropertiesController do
     end      
 
     it "should find the related project" do
-      Project.should_receive(:find_by_short_name).and_return(@project)
+      Project.should_receive(:find_by_short_name!).and_return(@project)
       do_delete
       assigns[:project].should == @project
     end
 
     it "should delete the ticket property" do
-      @ticket_properties.should_receive(:destroy).with('1').and_return(@ticket_property_type)
+      @ticket_properties.should_receive(:find).and_return(@ticket_property_type)
+      @ticket_property_type.should_receive(:destroy).and_return(@ticket_property_type)
       do_delete
     end
 
@@ -262,7 +263,7 @@ describe Admin::TicketPropertiesController do
   describe "handling PUT /admin/project_name/ticket_properties/sort" do
     
     before do
-      TicketPropertyType.stub!(:update_all).and_return(true)
+      @ticket_properties.stub!(:update_all).and_return(true)
     end
     
     def do_put
@@ -270,18 +271,18 @@ describe Admin::TicketPropertiesController do
     end
 
     it "should find the related project" do
-      Project.should_receive(:find_by_short_name).and_return(@project)
+      Project.should_receive(:find_by_short_name!).and_return(@project)
       do_put
       assigns[:project].should == @project
     end
     
     it "should update the records" do
-      TicketPropertyType.should_receive(:update_all).
-        with(['rank = ?', 0], ['id = ? AND project_id = ?', 3, @project.id]).and_return(true)
-      TicketPropertyType.should_receive(:update_all).
-        with(['rank = ?', 1], ['id = ? AND project_id = ?', 1, @project.id]).and_return(true)
-      TicketPropertyType.should_receive(:update_all).
-        with(['rank = ?', 2], ['id = ? AND project_id = ?', 2, @project.id]).and_return(true)
+      @ticket_properties.should_receive(:update_all).
+        with(['rank = ?', 0], ['id = ?', 3]).and_return(true)
+      @ticket_properties.should_receive(:update_all).
+        with(['rank = ?', 1], ['id = ?', 1]).and_return(true)
+      @ticket_properties.should_receive(:update_all).
+        with(['rank = ?', 2], ['id = ?', 2]).and_return(true)
       do_put
     end
 

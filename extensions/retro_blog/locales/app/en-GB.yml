@@ -1,129 +1,110 @@
 en-GB:
   application:
-    # extensions/retro_blog/views/blog/_comment_form.rhtml
-    "Author": "Author"
+    # extensions/retro_blog/views/blog/_comment_form.html.erb
+    Author: Author
 
-    # Missing
     # extensions/retro_blog/lib/blog_controller.rb
+    # extensions/retro_blog/models/blog_post.rb
     # extensions/retro_blog/views/blog/edit.html.erb
     # extensions/retro_blog/views/blog/index.html.erb
     # extensions/retro_blog/views/blog/new.html.erb
     # extensions/retro_blog/views/blog/show.html.erb
-    "Blog": 
+    Blog: Blog
 
     # Missing
     # extensions/retro_blog/ext_info.rb
-    # extensions/retro_blog/models/blog_post.rb
     "Blog Posts": 
 
-    # Missing
     # extensions/retro_blog/models/blog_post.rb
-    "Blog Posts for {{project}}": 
+    "Blog for {{project}}": "Blog for {{project}}"
 
-    # Missing
-    # extensions/retro_blog/views/blog/_form.html.erb
-    # extensions/retro_blog/views/blog/_navigation.html.erb
-    "Categories": 
-
-    # extensions/retro_blog/ext_info.rb
-    # extensions/retro_blog/views/blog/_comment_form.rhtml
-    "Comment": "Comment"
-
-    # Missing
-    # extensions/retro_blog/lib/blog_comments_controller.rb
-    "Comment was successfully created.": 
-
-    # Missing
-    # extensions/retro_blog/lib/blog_comments_controller.rb
-    "Comment was successfully deleted.": 
-
-    # Missing
-    # extensions/retro_blog/views/blog/_comments.html.erb
-    "Comments": 
+    # extensions/retro_blog/views/blog/edit.html.erb
+    Cancel: Cancel
 
     # extensions/retro_blog/views/blog/_form.html.erb
-    "Content": "Content"
-
-    # extensions/retro_blog/ext_info.rb
-    # extensions/retro_blog/views/blog/_comment_form.rhtml
-    # extensions/retro_blog/views/blog/new.html.erb
-    "Create": "Create"
-
-    # Missing
     # extensions/retro_blog/views/blog/_navigation.html.erb
-    # extensions/retro_blog/views/blog/new.html.erb
-    "Create Post": 
+    Categories: Categories
 
     # extensions/retro_blog/ext_info.rb
-    # extensions/retro_blog/views/blog/_comment.html.erb
-    # extensions/retro_blog/views/blog/show.html.erb
-    "Delete": "Delete"
+    # extensions/retro_blog/views/blog/_comment_form.html.erb
+    Comment: Comment
 
-    # extensions/retro_blog/views/blog/_comment.html.erb
-    # extensions/retro_blog/views/blog/show.html.erb
-    "Edit": "Edit"
+    # extensions/retro_blog/lib/blog_comments_controller.rb
+    "Comment was successfully created.": "Comment was successfully created."
 
-    # extensions/retro_blog/views/blog/_comment_form.rhtml
-    "Email": "Email"
+    # extensions/retro_blog/lib/blog_comments_controller.rb
+    "Comment was successfully deleted.": "Comment was successfully deleted."
 
-    # Missing
-    # extensions/retro_blog/views/blog/_comment_form.rhtml
     # extensions/retro_blog/views/blog/_comments.html.erb
-    "Leave a comment": 
+    Comments: Comments
 
-    # Missing
+    # extensions/retro_blog/views/blog/_form.html.erb
+    Content: Content
+
+    # extensions/retro_blog/ext_info.rb
+    # extensions/retro_blog/views/blog/_comment_form.html.erb
+    # extensions/retro_blog/views/blog/new.html.erb
+    Create: Create
+
     # extensions/retro_blog/views/blog/_navigation.html.erb
-    "My Posts": 
+    # extensions/retro_blog/views/blog/new.html.erb
+    "Create Post": "Create Post"
 
-    # Missing
-    # extensions/retro_blog/views/blog/_navigation.html.erb
-    "Navigation": 
-
-    # Missing
-    # extensions/retro_blog/lib/blog_controller.rb
-    "Post was successfully created.": 
-
-    # Missing
-    # extensions/retro_blog/lib/blog_controller.rb
-    "Post was successfully deleted.": 
-
-    # Missing
-    # extensions/retro_blog/lib/blog_controller.rb
-    "Post was successfully updated.": 
-
-    # Missing
-    # extensions/retro_blog/views/blog/_post.html.erb
-    "Read more": 
-
-    # Missing
+    # extensions/retro_blog/ext_info.rb
     # extensions/retro_blog/views/blog/_comment.html.erb
-    "Really delete this comment?": 
-
-    # Missing
     # extensions/retro_blog/views/blog/show.html.erb
-    "Really delete this post?": 
+    Delete: Delete
 
-    # Missing
+    # extensions/retro_blog/views/blog/_comment.html.erb
+    # extensions/retro_blog/views/blog/show.html.erb
+    Edit: Edit
+
+    # extensions/retro_blog/views/blog/_comment_form.html.erb
+    Email: Email
+
+    # extensions/retro_blog/views/blog/_comment_form.html.erb
+    # extensions/retro_blog/views/blog/_comments.html.erb
+    "Leave a comment": "Leave a comment"
+
+    # extensions/retro_blog/views/blog/_navigation.html.erb
+    "My Posts": "My Posts"
+
+    # extensions/retro_blog/views/blog/_navigation.html.erb
+    Navigation: Navigation
+
+    # extensions/retro_blog/lib/blog_controller.rb
+    "Post was successfully created.": "Post was successfully created."
+
+    # extensions/retro_blog/lib/blog_controller.rb
+    "Post was successfully deleted.": "Post was successfully deleted."
+
+    # extensions/retro_blog/lib/blog_controller.rb
+    "Post was successfully updated.": "Post was successfully updated."
+
+    # extensions/retro_blog/views/blog/_post.html.erb
+    "Read more": "Read more"
+
     # extensions/retro_blog/views/blog/_navigation.html.erb
     # extensions/retro_blog/views/blog/_post.html.erb
-    "Recent Posts": 
+    "Recent Posts": "Recent Posts"
 
-    # Missing
     # extensions/retro_blog/views/blog/index.html.erb
-    "There are no posts available.": 
+    "There are no posts available.": "There are no posts available."
 
-    # Missing
     # extensions/retro_blog/views/blog/_form.html.erb
-    "Title": 
+    Title: Title
 
     # extensions/retro_blog/ext_info.rb
     # extensions/retro_blog/views/blog/edit.html.erb
-    "Update": "Update"
+    Update: Update
 
     # extensions/retro_blog/ext_info.rb
-    "View": "View"
+    View: View
+
+    # extensions/retro_blog/views/blog/_post.html.erb
+    "{{count}} comments": "{{count}} comments"
 
     # Missing
     # extensions/retro_blog/views/blog/_post.html.erb
-    "{{count}} comments": 
+    "{{user}} on {{date}}": 
 

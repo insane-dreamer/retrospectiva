@@ -15,6 +15,7 @@ class User < ActiveRecord::Base
 
   validates_uniqueness_of :username, :allow_blank => true, :case_sensitive => false
   validates_length_of     :username, :within => 3..40
+  validates_format_of     :username, :with => /^[^\s]+$/
 
   validates_presence_of   :name, :email, :unless => :public?
   validates_uniqueness_of :email, :allow_blank => true, :case_sensitive => false, :unless => :public?
@@ -29,7 +30,8 @@ class User < ActiveRecord::Base
   validates_inclusion_of :time_zone, :in => ActiveSupport::TimeZone::MAPPING.keys
 
   attr_accessible :name, :plain_password, :plain_password_confirmation, :time_zone
-  attr_accessor  :plain_password, :plain_password_confirmation
+  attr_accessor_with_default :plain_password, ''
+  attr_accessor_with_default :plain_password_confirmation, ''
   
   named_scope :active, :conditions => ['active = ?', true]
   
@@ -44,7 +46,7 @@ class User < ActiveRecord::Base
     end
     
     def public_user
-      @public_user ||= User.find_by_username 'Public', :include => {:groups => :projects}
+      User.find_by_username 'Public', :include => {:groups => :projects}
     end
 
     def searchable_column_names
@@ -53,8 +55,9 @@ class User < ActiveRecord::Base
       end
     end
     
-    def authenticate(params)      
-      if user = identify(params[:username])
+    def authenticate(params)
+      user = params.is_a?(Hash) ? identify(params[:username]) : nil
+      if user
         success = if secure_auth? 
           user.valid_password_hash?(params[:hash], params[:tan])
         else
@@ -113,9 +116,9 @@ class User < ActiveRecord::Base
     Digest::SHA1.hexdigest("#{SecureToken.spend(token)}:#{password}") == hash    
   end
 
-  # Returns all active projects available for the user
-  def active_projects
-    @active_projects ||= AssociationProxies::ActiveUserProjects.new(self)
+  # Returns all projects available for the user
+  def projects
+    @projects ||= AssociationProxies::UserProjects.instantiate(self)
   end
 
   # Resets the password attribute, expects plain password
@@ -180,6 +183,10 @@ class User < ActiveRecord::Base
     else
       false
     end
+  end
+
+  def serialize_only
+    [:id, :username, :name]
   end
 
   protected

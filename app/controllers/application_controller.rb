@@ -3,6 +3,7 @@ class ApplicationController < ActionController::Base
   filter_parameter_logging :password
   
   before_filter :authenticate
+  before_filter :store_back_to_path
   before_filter :set_locale
   before_filter :set_time_zone
   after_filter  :reset_request_cache!
@@ -10,22 +11,16 @@ class ApplicationController < ActionController::Base
   delegate :permitted?, :to => :'User.current'
   protected :permitted?
   
-  helper_method :layout_markers, :permitted?
-
-  def self.enable_private_rss!(options = {})
-    pos = before_filters.index(:authorize) || before_filters.size
-    filter_chain.send :update_filter_chain, options, :before, pos do |controller|
-    
-      if controller.request.format.rss? and controller.params[:private].present? and User.current.public?
-        user = User.active.find_by_private_key controller.params[:private]      
-        User.current = user if user            
-      end
-      true
-    
-    end
-  end
+  helper_method :permitted?
 
   protected
+    
+    def store_back_to_path
+      if User.current.public? && ( request.format.nil? || request.format.html? ) 
+        session[:back_to] = "#{ActionController::Base.relative_url_root}#{request.path}"            
+      end
+      true 
+    end
     
     def reset_request_cache!
       User.current = nil
@@ -66,14 +61,6 @@ class ApplicationController < ActionController::Base
       end.delete_if {|k, | k.nil? }
     end
 
-    # Override ActionController::Base method to prevent invalid format calls (causes 500 error)
-    # 
-    # Previously: /ticket/123.xml => 500
-    # Override:   /ticket/123.xml => 406
-    def default_render
-      response.content_type.blank? ? respond_to(:html) : super 
-    end
-
     def rescue_action_in_public(exception) #:doc:
       status_code = response_code_for_rescue(exception)
       case status_code
@@ -83,20 +70,25 @@ class ApplicationController < ActionController::Base
       render_optional_error_file(status_code)    
     end
 
-  private  
-
-    def layout_markers
-      @layout_markers ||= {
-        :header => RetroCM[:content][:custom][:header].to_s,
-        :footer => RetroCM[:content][:custom][:footer].to_s,
-        :content_styles => ''
-      }
+    def failed_authorization!
+      if User.current.public?
+        case request.format
+        when Mime::XML, Mime::RSS
+          request_http_basic_authentication(RetroCM[:general][:basic][:site_name])
+        else
+          request.get? ? redirect_to(login_path) : super
+        end
+      else
+        super
+      end
     end
+
+  private  
 
     def render_optional_error_file(status_code)
       status = interpret_status(status_code)
       path = "#{RAILS_ROOT}/app/views/rescue/#{status[0,3]}.html.erb"
-      if File.exist?(path) and request.format.html?
+      if File.exist?(path) and ( request.format.nil? or request.format.html? )
         render :file => path, :layout => 'application', :status => status
       else
         head status

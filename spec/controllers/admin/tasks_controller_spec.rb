@@ -5,11 +5,13 @@ describe Admin::TasksController do
 
   before do
     permit_access!
-    @tasks = [mock('Task1')]
-    Retrospectiva::Tasks.stub!(:tasks).and_return(@tasks)
+    @task = mock_model(Retrospectiva::TaskManager::Task)
+    @tasks = [@task]
+    @parser = mock(Retrospectiva::TaskManager::Parser, :tasks => @tasks)
+    Retrospectiva::TaskManager::Parser.stub!(:new).and_return(@parser)
   end
 
-  describe "handling GET /admin/tasks" do
+  describe "GET index" do
     def do_get
       get :index      
     end
@@ -17,7 +19,8 @@ describe Admin::TasksController do
     it_should_successfully_render_template('index')
 
     it "should query the tasks" do
-      Retrospectiva::Tasks.should_receive(:tasks).and_return(@tasks)
+      Retrospectiva::TaskManager::Parser.should_receive(:new).and_return(@parser)
+      @parser.should_receive(:tasks).and_return(@tasks)
       do_get
     end
 
@@ -29,10 +32,10 @@ describe Admin::TasksController do
   end
 
 
-  describe "handling PUT /admin/tasks/save" do
+  describe "PUT save" do
 
     before do
-      Retrospectiva::Tasks.stub!(:update).and_return true
+      Retrospectiva::TaskManager::Task.stub!(:update_or_create).and_return @task
     end
 
     def do_put
@@ -43,16 +46,51 @@ describe Admin::TasksController do
       get :save
       response.code.should == '400'
     end
-          
-    it "should update the configuration" do
-      Retrospectiva::Tasks.should_receive(:update).with('task_a' => 600).and_return true
+
+    it "should find or create the affected task" do
+      Retrospectiva::TaskManager::Task.should_receive(:create_or_update).with('task_a', 600).and_return @task
       do_put
     end
-
+          
     it "should redirect to task overview" do
       do_put
       response.should be_redirect
       response.should redirect_to(admin_tasks_path)
+    end
+    
+  end
+
+  describe "PUT update (reset)" do
+
+    def now
+      @now ||= Time.zone.now 
+    end
+
+    before do
+      @task.stub!(:stale?).and_return(false)
+      @task.stub!(:started_at).and_return(now)
+      Retrospectiva::TaskManager::Task.stub!(:find).and_return @task
+    end
+
+    def do_put
+      put :update, :id => '37'
+    end
+
+    it "should assign the task" do
+      Retrospectiva::TaskManager::Task.should_receive(:find).with('37').and_return @task
+      do_put
+      assigns[:task].should == @task
+    end
+          
+    it "should redirect to task overview" do
+      do_put
+      response.should redirect_to(admin_tasks_path)
+    end
+
+    it "should reset task if stale" do
+      @task.should_receive(:stale?).and_return(true)
+      @task.should_receive(:update_attribute).with(:finished_at, now)
+      do_put
     end
     
   end

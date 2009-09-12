@@ -58,7 +58,7 @@ describe TicketsController do
       @tickets_proxy.should_receive(:paginate).with({
         :joins=>nil, :conditions=>nil,
         :order=>"tickets.updated_at DESC, ticket_changes.created_at",
-        :page=>nil, :per_page=>nil,
+        :page=>nil, :per_page=>nil, :total_entries=>nil,
         :include=>[:DEFAULTS]
       }).and_return(@tickets)
       do_get
@@ -82,7 +82,7 @@ describe TicketsController do
           :joins=>nil,
           :conditions=>["( content = ? )", 'TERM'],
           :order=>"tickets.updated_at DESC, ticket_changes.created_at",
-          :page=>nil, :per_page=>nil,
+          :page=>nil, :per_page=>nil, :total_entries=>nil,
           :include=>[:DEFAULTS]
         }).and_return(@tickets)
         do_get
@@ -118,7 +118,7 @@ describe TicketsController do
           :joins=>nil,
           :conditions=>['( tickets.updated_at > ? )', '[SINCE]'],
           :order=>"tickets.updated_at DESC, ticket_changes.created_at",
-          :page=>nil, :per_page=>nil,
+          :page=>nil, :per_page=>nil, :total_entries=>nil,
           :include=>[:DEFAULTS]
         }).and_return(@tickets)
         do_get
@@ -134,7 +134,7 @@ describe TicketsController do
       Ticket.stub!(:to_rss).and_return("RSS")
 
       @reports_proxy = @project.stub_association!(:ticket_reports, :find_by_id => nil, :find => [])
-      TicketFilter::Collection.stub!(:new).and_return mock('TicketFilter::Collection', :joins => nil, :conditions => nil)
+      TicketFilter::Collection.stub!(:new).and_return mock('TicketFilter::Collection', :joins => [:status], :conditions => ['1 = 0'])
       Ticket.stub!(:default_includes).and_return([:DEFAULTS])
     end
 
@@ -150,7 +150,7 @@ describe TicketsController do
     it "should find all tickets" do
       @tickets_proxy.should_receive(:paginate).with(
         :order=>"tickets.updated_at DESC, ticket_changes.created_at",
-        :page=>nil, :per_page=>10,
+        :page=>nil, :per_page=>10, :total_entries=>10,
         :include=>[:DEFAULTS], :joins=>nil,
         :conditions=>nil).
         and_return(@tickets)
@@ -158,7 +158,7 @@ describe TicketsController do
     end
 
     it "should render the found tickets as RSS" do
-      Ticket.should_receive(:to_rss).with(@tickets).and_return("RSS")
+      Ticket.should_receive(:to_rss).with(@tickets, {}).and_return("RSS")
       do_get
       response.body.should == "RSS"
       response.content_type.should == "application/rss+xml"
@@ -170,8 +170,6 @@ describe TicketsController do
 
     before(:each) do
       @tickets_proxy.stub!(:paginate).and_return(@tickets)
-      Ticket.stub!(:to_rss).and_return("RSS")
-
       @reports_proxy = @project.stub_association!(:ticket_reports, :find_by_id => nil, :find => [])
       TicketFilter::Collection.stub!(:new).and_return mock('TicketFilter::Collection', :joins => nil, :conditions => nil)
       Ticket.stub!(:default_includes).and_return([:DEFAULTS])
@@ -191,7 +189,7 @@ describe TicketsController do
       Retro::Search.should_receive(:conditions).with('name', *Ticket.searchable_column_names).and_return(['content = ?', 'name'])
       @tickets_proxy.should_receive(:paginate).with(
         :order=>"tickets.updated_at DESC, ticket_changes.created_at",
-        :page=>nil, :per_page=>nil,
+        :page=>nil, :per_page=>nil, :total_entries=>30, 
         :include=>[:DEFAULTS], :joins=>nil,
         :conditions=>["( content = ? )", 'name']).
         and_return(@tickets)
@@ -358,7 +356,7 @@ describe TicketsController do
 
     describe "with successful save" do
 
-      def do_post
+      def do_post(options = {})
         @ticket.should_receive(:save).and_return true
         super
       end
@@ -371,6 +369,36 @@ describe TicketsController do
       it "should redirect to the ticket" do
         do_post
         response.should redirect_to(project_ticket_path(@project, @ticket))
+      end
+
+      describe "XML request" do
+        
+        before do
+          controller.stub!(:authenticate_with_http_basic).and_return(@user)
+        end
+        
+        
+        def do_post
+          super :format => 'xml'
+        end
+        
+        it 'should authenticate the user' do
+          controller.should_receive(:authenticate_with_http_basic).and_return(@user)          
+          do_post
+        end
+
+        it 'should be successful' do
+          do_post
+          response.should be_success
+        end
+        
+        it 'should return the record with the correct location' do
+          do_post
+          response.headers['Location'].should == project_ticket_url(@project, @ticket)
+          response.content_type.should == "application/xml"
+          response.body.should have_tag('ticket')
+        end
+        
       end
 
     end

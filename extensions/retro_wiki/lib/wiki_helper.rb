@@ -24,9 +24,7 @@ module WikiHelper
     end
      
     if permitted?(:wiki_pages, :delete)
-      links << link_to_wiki_page(_('Delete'), @wiki_page, 
-        :confirm => _('Are you really sure?'),
-        :method => :delete )
+      links << link_to_wiki_page(_('Delete'), @wiki_page, options_for_destroy_link)
     end
 
     links.join(' | ')
@@ -45,6 +43,24 @@ module WikiHelper
     end
     
     links.join(' | ')
+  end
+  
+  def anchorize(html)
+    html.gsub(/(\<h1[^>]*\>)(.+?)\<\/h1\>/ui) do |match|
+      tag, text = $1, $2
+      anchor = ActiveSupport::Inflector.transliterate(strip_tags(text))
+      anchor.gsub!(/\&\w+\;/, '')
+      anchor.gsub!(/\W/, '-')
+      anchor.squeeze!('-')
+      anchor.gsub!(/-$/i, '')
+      "#{tag}#{text} <a id=\"#{anchor}\" href=\"##{anchor}\" class=\"wiki-anchor\">&para;</a></h1>"
+    end
+  end
+
+  def include_wiki_stylesheet
+    content_for :header do
+      x_stylesheet_link_tag('retro_wiki')      
+    end
   end
 
   private

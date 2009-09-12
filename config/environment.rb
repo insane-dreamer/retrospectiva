@@ -1,9 +1,9 @@
 # Be sure to restart your server when you modify this file
 
-RETROSPECTIVA_VERSION = '1.9.320'
+RETROSPECTIVA_VERSION = '1.9.910'
 
 # Specifies gem version of Rails to use when vendor/rails is not present
-RAILS_GEM_VERSION = '2.3.2' unless defined? RAILS_GEM_VERSION
+RAILS_GEM_VERSION = '2.3.4' unless defined? RAILS_GEM_VERSION
 
 # Bootstrap the Rails environment, frameworks, and default configuration
 require File.join(File.dirname(__FILE__), 'boot')
@@ -20,9 +20,15 @@ Rails::Initializer.run do |config|
 
   # Specify gems that this application depends on. 
   # They can then be installed with "rake gems:install" on new installations.
+  config.gem 'rack', :lib => 'rack', :source => 'http://gems.rubyforge.org', :version => '1.0.0'
   config.gem 'mislav-will_paginate', :lib => 'will_paginate', :source => 'http://gems.github.com', :version => '>= 2.3.8'
   config.gem 'mbleigh-acts-as-taggable-on', :lib => 'acts-as-taggable-on', :source => 'http://gems.github.com', :version => '>= 1.0.3' 
-
+  
+  # Skip if installed via Single-Step-Installer
+  if !File.exist?(File.join(RAILS_ROOT, 'vendor', 'gems')) || $gems_rake_task 
+    config.gem 'RedCloth', :lib => 'redcloth', :version => '>= 4.1.9'
+  end
+  
   # Only load the plugins named here, in the order given. By default, all plugins 
   # in vendor/plugins are loaded in alphabetical order.
   # :all can be used as a placeholder for all plugins not explicitly named
@@ -30,7 +36,7 @@ Rails::Initializer.run do |config|
 
   # Add additional load paths for your own custom dirs
   config.load_paths += [
-    "#{RAILS_ROOT}/vendor/coderay-0.7.4/lib"
+#    "#{RAILS_ROOT}/vendor/coderay-0.7.4/lib"
   ].flatten
 
   config.controller_paths += [

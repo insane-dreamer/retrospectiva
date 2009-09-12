@@ -15,10 +15,10 @@ module TicketsHelper
     end
   end
 
-  def hash_for_search_tickets_path
-    hash_for_search_project_tickets_path @filters.to_params.
-      merge(params[:report] ? {:report => params[:report]} : {}).
-      merge(:project_id => Project.current.to_param, :format => :js)
+  def tickets_path(options = {})
+    method = [options.delete(:prefix), 'project_tickets_path'].compact.join('_')
+    send method, Project.current,
+      params.only(:report, :by).merge(@filters.to_params).merge(options)
   end
 
   def ticket_update(update, tag = nil)
@@ -80,20 +80,6 @@ module TicketsHelper
     end
   end
 
-  def user_select_with_auto_complete(f)
-    selected = f.object.assigned_user
-    path = users_project_tickets_path(Project.current, :authenticity_token => form_authenticity_token)
-    code = %Q(
-      new Ajax.Autocompleter('assigned_user', 'user_selection', '#{path}', {
-        afterUpdateElement: function(text, li) { $('#{f.object_name}_assigned_user_id').value = li.id; }
-      });
-    ).squish
-    content_tag :div,
-      text_field_tag(:assigned_user, selected ? h(selected.name) : nil) +
-      f.hidden_field(:assigned_user_id, :wrap => false) +
-      '<div id="user_selection"></div>' + javascript_tag(code)
-  end
-
   def subscription_icon(ticket)
     if ticket.subscribers.include?(User.current)
       image_tag 'watching.png', :alt => _('You are watching this ticket'), :title => _('You are watching this ticket')
@@ -118,6 +104,11 @@ module TicketsHelper
         :colspan => ( property_types.any? ? 8 : 7 )
       "<tr class=\"#{current_cycle}\">#{spacer}</tr>" + render(ticket_group)
     end.join("\n")
+  end
+
+  def ticket_group_by(label, value, *aliases)
+    aliases.unshift(value)
+    link_to_unless aliases.include?(params[:by]), label, tickets_path(:by => value)
   end
 
   protected
@@ -155,5 +146,20 @@ module TicketsHelper
     def wrap_update(value, tag = nil)
       tag ? content_tag(tag, h(value)) : h(value)
     end
+
+    def user_select_with_auto_complete(f)
+      selected = f.object.assigned_user
+      path = users_project_tickets_path(Project.current, :authenticity_token => form_authenticity_token)
+      code = %Q(
+        new Ajax.Autocompleter('assigned_user', 'user_selection', '#{path}', {
+          afterUpdateElement: function(text, li) { $('#{f.object_name}_assigned_user_id').value = li.id; }
+        });
+      ).squish
+      content_tag :div,
+        text_field_tag(:assigned_user, selected ? h(selected.name) : nil) +
+        f.hidden_field(:assigned_user_id, :wrap => false) +
+        '<div id="user_selection"></div>' + javascript_tag(code)
+    end
+
 
 end

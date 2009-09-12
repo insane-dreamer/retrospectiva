@@ -3,7 +3,7 @@ class Project < ActiveRecord::Base
   has_and_belongs_to_many :changesets, :uniq => true  
   has_many :tickets, :dependent => :destroy  
   has_many :ticket_changes, :through => :tickets, :source => :changes
-  has_many :milestones, :order => 'milestones.started_on', :dependent => :destroy
+  has_many :milestones, :dependent => :destroy
   has_many :ticket_property_types, :dependent => :destroy
   has_many :ticket_properties, :through => :ticket_property_types
   has_many :ticket_reports, :dependent => :destroy
@@ -12,7 +12,7 @@ class Project < ActiveRecord::Base
   FN_PATTERN = '[~\#\-!\w\.\+]'
 
   validates_length_of :name, :in => 2..80
-  validates_uniqueness_of :name
+  validates_uniqueness_of :name, :case_sensitive => false
   validates_format_of :name, 
     :with => /^[A-Za-z]/ 
   validates_format_of :root_path, 
@@ -136,6 +136,18 @@ class Project < ActiveRecord::Base
 
   def active_repository?
     repository.present? and repository.active?
+  end
+  
+  def identifier
+    short_name
+  end
+
+  def serialize_only
+    [:name, :info, :locale, :central]
+  end
+
+  def serialize_methods
+    [:identifier]
   end
   
   protected

@@ -33,7 +33,7 @@ class Ticket < ActiveRecord::Base
       c.link = c.route(:project_tickets_url, project)
     end
     r.item do |i, ticket, options|
-      project = options[:project] || Project.current
+      project = options[:project] || ticket.project
       i.title = _('Ticket #{{id}} ({{status}}) reported by {{author}} - {{summary}}', :id => ticket.id, :status => ticket.status.name, :author => ticket.author, :summary => ticket.summary)
       i.description = ticket.content
       i.date = ticket.created_at
@@ -66,8 +66,9 @@ class Ticket < ActiveRecord::Base
     end
 
     # Override default method to include both Tickets and TicketChanges into the feed
-    def to_rss(records)
-      super(flatten_and_sort(records).last(records.size).reverse)
+    def to_rss(records, options = {})
+      limit = options.delete(:limit) || records.size
+      super(flatten_and_sort(records).last(limit).reverse)
     end
 
     protected
@@ -186,12 +187,21 @@ class Ticket < ActiveRecord::Base
     end
   end
     
-  def permitted_subscribers
+  def permitted_subscribers(exclude = nil)
+    exclude = nil if RetroCM[:ticketing][:subscription][:notify_author]
     subscribers.select do |user|
-      not user.public? and user.permitted?(:tickets, :view, :project => project) and user.permitted?(:tickets, :watch, :project => project)
+      not user.public? and exclude != user and user.permitted?(:tickets, :view, :project => project) and user.permitted?(:tickets, :watch, :project => project)
     end
-  end  
-  
+  end
+
+  def serialize_only
+    [:id, :summary, :content, :author, :milestone_id, :created_at, :updated_at]    
+  end
+
+  def serialize_including
+    [:assigned_user, :status, :priority]
+  end
+
   protected
 
     # Return true if user has the permission to modify this ticket, else false

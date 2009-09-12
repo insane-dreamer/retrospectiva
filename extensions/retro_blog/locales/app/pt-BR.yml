@@ -1,33 +1,39 @@
 pt-BR:
   application:
-    # extensions/retro_blog/views/blog/_comment_form.rhtml
-    "Author": "Autor"
+    # extensions/retro_blog/views/blog/_comment_form.html.erb
+    Author: Autor
 
     # Missing
     # extensions/retro_blog/lib/blog_controller.rb
+    # extensions/retro_blog/models/blog_post.rb
     # extensions/retro_blog/views/blog/edit.html.erb
     # extensions/retro_blog/views/blog/index.html.erb
     # extensions/retro_blog/views/blog/new.html.erb
     # extensions/retro_blog/views/blog/show.html.erb
-    "Blog": 
+    Blog: 
 
     # Missing
     # extensions/retro_blog/ext_info.rb
-    # extensions/retro_blog/models/blog_post.rb
     "Blog Posts": 
+
+    # Unknown
+    "Blog Posts for {{project}}": 
 
     # Missing
     # extensions/retro_blog/models/blog_post.rb
-    "Blog Posts for {{project}}": 
+    "Blog for {{project}}": 
+
+    # extensions/retro_blog/views/blog/edit.html.erb
+    Cancel: Cancelar
 
     # Missing
     # extensions/retro_blog/views/blog/_form.html.erb
     # extensions/retro_blog/views/blog/_navigation.html.erb
-    "Categories": 
+    Categories: 
 
     # extensions/retro_blog/ext_info.rb
-    # extensions/retro_blog/views/blog/_comment_form.rhtml
-    "Comment": "Comentário"
+    # extensions/retro_blog/views/blog/_comment_form.html.erb
+    Comment: Comentário
 
     # Missing
     # extensions/retro_blog/lib/blog_comments_controller.rb
@@ -39,16 +45,16 @@ pt-BR:
 
     # Missing
     # extensions/retro_blog/views/blog/_comments.html.erb
-    "Comments": 
+    Comments: 
 
     # Missing
     # extensions/retro_blog/views/blog/_form.html.erb
-    "Content": 
+    Content: 
 
     # extensions/retro_blog/ext_info.rb
-    # extensions/retro_blog/views/blog/_comment_form.rhtml
+    # extensions/retro_blog/views/blog/_comment_form.html.erb
     # extensions/retro_blog/views/blog/new.html.erb
-    "Create": "Criar"
+    Create: Criar
 
     # Missing
     # extensions/retro_blog/views/blog/_navigation.html.erb
@@ -58,18 +64,18 @@ pt-BR:
     # extensions/retro_blog/ext_info.rb
     # extensions/retro_blog/views/blog/_comment.html.erb
     # extensions/retro_blog/views/blog/show.html.erb
-    "Delete": "Remover"
+    Delete: Remover
 
     # Missing
     # extensions/retro_blog/views/blog/_comment.html.erb
     # extensions/retro_blog/views/blog/show.html.erb
-    "Edit": 
+    Edit: 
 
-    # extensions/retro_blog/views/blog/_comment_form.rhtml
-    "Email": "E-mail"
+    # extensions/retro_blog/views/blog/_comment_form.html.erb
+    Email: E-mail
 
     # Missing
-    # extensions/retro_blog/views/blog/_comment_form.rhtml
+    # extensions/retro_blog/views/blog/_comment_form.html.erb
     # extensions/retro_blog/views/blog/_comments.html.erb
     "Leave a comment": 
 
@@ -79,7 +85,7 @@ pt-BR:
 
     # Missing
     # extensions/retro_blog/views/blog/_navigation.html.erb
-    "Navigation": 
+    Navigation: 
 
     # Missing
     # extensions/retro_blog/lib/blog_controller.rb
@@ -97,12 +103,10 @@ pt-BR:
     # extensions/retro_blog/views/blog/_post.html.erb
     "Read more": 
 
-    # Missing
-    # extensions/retro_blog/views/blog/_comment.html.erb
+    # Unknown
     "Really delete this comment?": 
 
-    # Missing
-    # extensions/retro_blog/views/blog/show.html.erb
+    # Unknown
     "Really delete this post?": 
 
     # Missing
@@ -116,16 +120,20 @@ pt-BR:
 
     # Missing
     # extensions/retro_blog/views/blog/_form.html.erb
-    "Title": 
+    Title: 
 
     # extensions/retro_blog/ext_info.rb
     # extensions/retro_blog/views/blog/edit.html.erb
-    "Update": "Atualizar"
+    Update: Atualizar
 
     # extensions/retro_blog/ext_info.rb
-    "View": "Ver"
+    View: Ver
 
     # Missing
     # extensions/retro_blog/views/blog/_post.html.erb
     "{{count}} comments": 
+
+    # Missing
+    # extensions/retro_blog/views/blog/_post.html.erb
+    "{{user}} on {{date}}": 
 

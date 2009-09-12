@@ -17,7 +17,7 @@ class Milestone < ActiveRecord::Base
   belongs_to :project
 
   validates_presence_of :name, :project_id, :started_on
-  validates_uniqueness_of :name, :scope => :project_id
+  validates_uniqueness_of :name, :case_sensitive => false, :scope => :project_id
   validates_length_of :info, :maximum => 50000, :allow_blank => true
 
   retro_previewable do |r|
@@ -44,11 +44,11 @@ class Milestone < ActiveRecord::Base
     end
 
     def default_order
-      'CASE WHEN milestones.due IS NULL THEN 1 ELSE 0 END, milestones.due ASC, milestones.finished_on DESC'
+      'CASE WHEN milestones.due IS NULL THEN 1 ELSE 0 END, milestones.due ASC, milestones.finished_on DESC, milestones.started_on ASC'
     end
 
     def reverse_order
-      'CASE WHEN milestones.due IS NULL THEN 1 ELSE 0 END, milestones.due DESC, milestones.finished_on ASC'
+      'CASE WHEN milestones.due IS NULL THEN 1 ELSE 0 END, milestones.due DESC, milestones.finished_on ASC, milestones.started_on DESC'
     end
 
     def searchable_column_names
@@ -71,6 +71,12 @@ class Milestone < ActiveRecord::Base
     :conditions => ['( milestones.finished_on IS NULL OR milestones.finished_on >= ? )', date] 
   }}    
   
+  named_scope :in_default_order,
+    :order => default_order
+
+  named_scope :in_reverse_order,
+    :order => reverse_order
+  
   def ticket_counts
     @tickets_counts ||= Status.states.inject({}) do |result, state|
       result.merge state.type => tickets.count_by_state(state.id)
@@ -91,6 +97,10 @@ class Milestone < ActiveRecord::Base
 
   def started_on
     read_attribute(:started_on) || write_attribute(:started_on, Date.today)
+  end
+  
+  def serialize_only
+    [:id, :name, :info, :started_on, :finished_on, :due]
   end
   
   private

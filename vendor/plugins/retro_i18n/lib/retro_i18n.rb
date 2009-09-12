@@ -1,8 +1,11 @@
+# coding:utf-8 
+
 require 'retro_i18n/patches'
 require 'retro_i18n/parser'
 require 'retro_i18n/locale_file'
 require 'retro_i18n/structs'
 require 'retro_i18n/methods'
+require 'retro_i18n/ya2yaml'
 
 Dir[File.dirname(__FILE__) + '/../locales/*.{rb,yml}'].each do |path|
   I18n.load_path << path
@@ -23,8 +26,9 @@ RetroI18n.define do |l|
   l.store 'en-US',     'English (US)', 0 
   l.store 'en-GB',     'English (GB)', 1
   l.store 'fr-FR',     'Français', 0
-  l.store 'fi-FI',     'Suomi', 0
+  l.store 'fi-FI',     'Suomi', 0  
   l.store 'es-ES',     'Español', 0
+  l.store 'es-AR',     'Español (de Argentina)', 0
   l.store 'it-IT',     'Italiano', 0
   l.store 'ja-JP',     '日本語 (Japanese)', 0
   l.store 'nl-NL',     'Nederlands', 0

@@ -6,7 +6,7 @@ module NavigationHelper
 
   def base_navigation
     links = []
-    if User.current.active_projects.size > 1 || true
+    if User.current.projects.active.size > 1 || true
       klass = controller.is_a?(ProjectsController) ? 'active' : nil
       links << link_to(_('Projects'), projects_path, :class => klass)
     end
@@ -36,7 +36,7 @@ module NavigationHelper
       Project.current.existing_revisions.include?(revision)    
 
     link_to_if condition, label, 
-      project_changeset_path(Project.current, revision), 
+      project_changeset_path(Project.current, revision, params.only(:expand_all)), 
       options.reverse_merge(:title => _('Show changeset {{revision}}', :revision => h(revision)))
   end
   
@@ -70,7 +70,7 @@ module NavigationHelper
       html << link_to(_('Login'), login_path)
       html << link_to(_('Register'), new_account_path) if cf[:account_management] && cf[:self_registration]
     else
-      html << _('Logged in as {{username}}', :username => h(User.current.username))
+      html << _('Logged in as {{name}}', :name => h(User.current.name))
       html << link_to(_('My Account'), account_path) if cf[:account_management]
       html << link_to(_('Logout'), logout_path)
     end

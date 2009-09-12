@@ -23,20 +23,33 @@ class TicketFilter::Collection < Array
   
   def including(name, id)
     name, id = name.to_s, id.to_i
-    returning(clone_params) do |result|      
+    returning(real_params) do |result|      
       result[name] ||= []
-      result[name] << id
+      result[name] << id      
+      if name == 'status'
+        result.delete('state')      
+      end      
     end
   end
 
   def excluding(name, id)
     name, id = name.to_s, id.to_i
-    returning(clone_params) do |result|
+    returning(real_params) do |result|
+      
       if result[name] == [id]
         result.delete(name)
       elsif result.key?(name)
         result[name].delete(id)
       end
+      
+      if name == 'status'
+        result.delete('state')        
+      elsif name == 'state' and result['status']
+        result['status'].reject! do |status_id|
+          status_hash[status_id].nil? || status_hash[status_id].state_id == id 
+        end 
+      end
+      
     end
   end
   
@@ -68,12 +81,6 @@ class TicketFilter::Collection < Array
     @index ||= index_by(&:name)
   end
 
-  def clone_params
-    to_params.inject({}) do |result, (key, value)|
-      result.merge key => value.dup
-    end
-  end
-  
   protected
   
     def push_global_items!
@@ -95,11 +102,7 @@ class TicketFilter::Collection < Array
     end
 
     def push_other_items!
-      unless User.current.public?
-        property :my_tickets, TicketFilter::Custom::UserFilter.items, 
-          :label => _('My Tickets'),
-          :conditions => TicketFilter::Custom::UserFilter.lambda_for_conditions
-      end
+      custom_property(:my_tickets) unless User.current.public?
     end  
 
     def pre_select!      
@@ -115,7 +118,14 @@ class TicketFilter::Collection < Array
     
     def after_add(key, records, options = {})
     end
-  
+
+    def real_params
+      inject({}) do |result, item|
+        result[item.name] = item.selected_ids.sort if item.selected?
+        result
+      end
+    end
+
   private
 
     def property(name, records, options = {})
@@ -124,6 +134,11 @@ class TicketFilter::Collection < Array
         self << TicketFilter::Item.new(name, records, params[name], options)
         after_add(name, records, options)
       end
+    end
+
+    def custom_property(symbol)
+      instance = "TicketFilter::Custom::#{symbol.to_s.camelize}".constantize.new
+      property(instance.name, instance.items, instance.options)
     end
   
     def ticket_properties
@@ -138,11 +153,15 @@ class TicketFilter::Collection < Array
       @statuses ||= Status.find :all, :order => 'rank'
     end
   
+    def status_hash
+      @status_hash ||= statuses.index_by(&:id)
+    end
+  
     def priorities
       @priorities ||= Priority.find :all, :order => 'rank'
     end
   
     def milestones
-      @milestones ||= project.milestones.find :all, :order => 'rank'
+      @milestones ||= project.milestones.in_default_order.find :all
     end  
 end

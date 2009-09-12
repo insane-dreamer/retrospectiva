@@ -34,12 +34,12 @@ module FormatHelper
 
   def markup(text, options = {})
     options.symbolize_keys!
-    wikified = sanitize(WikiEngine.markup(text.dup, options[:engine]))
+    wikified = auto_link(sanitize(WikiEngine.markup(text, options[:engine])))
     format_internal_links(wikified, options)
   end
     
   def simple_markup(text, options = {})
-    wikified = auto_link(simple_format(escape_once(text.dup)))
+    wikified = auto_link(simple_format(escape_once(text)))
     format_internal_links(wikified, options)
   end
 
@@ -87,21 +87,30 @@ module FormatHelper
         :class => 'markup-links'
     end
     
-    def format_internal_links(markup, options = {})
+    def format_internal_links(markup, options = {})      
       return markup if Project.current.blank? and not options[:demo] 
       
       WikiEngine.with_text_parts_only(markup) do |text|
-        text.gsub(/([^\[]|^)\[(\\?)([\#|r]?)(\w+)\]([^\]]|$)/) do |match|
-          prefix, escape, type, ref, suffix = $1, $2, $3, $4, $5
-          case escape.blank? && type
-          when 'r', ''
-            prefix + format_internal_changeset_link(ref, options) + suffix
-          when '#'
-            prefix + format_internal_ticket_link(ref.to_i, options) + suffix
-          else
-            "#{prefix}[#{type}#{ref}]#{suffix}"
-          end
-        end
+        text.gsub(internal_link_pattern) do |match|
+          format_internal_link($~, options)
+        end      
+      end
+    end
+
+    def internal_link_pattern
+      /\[?(\\?)([\#|r]?)(\w+)\]/
+    end
+
+    def format_internal_link(match_data, options)
+      escape, type, ref = match_data[1, 3]
+      
+      case escape.blank? and type
+      when 'r', ''
+        format_internal_changeset_link(ref, options)
+      when '#'
+        format_internal_ticket_link(ref.to_i, options) 
+      else
+        "[#{type}#{ref}]"
       end
     end
     
@@ -135,7 +144,7 @@ module FormatHelper
   private 
 
     def find_project_for_ticket(ticket_id)
-      projects = RetroCM[:content][:markup][:global_ticket_refs] ? User.current.active_projects : [Project.current]
+      projects = RetroCM[:content][:markup][:global_ticket_refs] ? User.current.projects.active : [Project.current]
       projects.detect do |project|
         !project.existing_tickets[ticket_id].blank?
       end

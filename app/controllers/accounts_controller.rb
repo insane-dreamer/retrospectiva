@@ -1,5 +1,5 @@
 #--
-# Copyright (C) 2008 Dimitrij Denissenko
+# Copyright (C) 2009 Dimitrij Denissenko
 # Please read LICENSE document for more information.
 #++
 class AccountsController < ApplicationController
@@ -12,29 +12,37 @@ class AccountsController < ApplicationController
   before_filter :user_is_non_public?, :only => [:show, :update]
   before_filter :user_is_public?, :only => [:new, :create, :activate, :forgot_password]
 
+  before_filter :assert_user_parameter, :only => [:create, :update]
   before_filter :purge_expired_accounts, :only => [:create, :activate]
   before_filter :assign_user, :only => [:show, :update]
   before_filter :new_user, :only => [:new, :create]
 
   def show
+    respond_to do |format|
+      format.html
+      format.xml { render :xml => user_xml }
+    end
   end
 
   def update
     @user.attributes = params[:user]
     @user.reset_private_key if params[:reset_private_key]
-    if @user.save
-      flash[:notice]  = _('User account was successfully updated.')
-      redirect_to account_path
-    else
-      render :action => 'show'
-    end    
+    respond_to do |format|
+      if @user.save
+        flash[:notice]  = _('User account was successfully updated.')
+        format.html { redirect_to account_path }
+        format.xml  { render :xml => user_xml, :status => :created, :location => account_path }        
+      else
+        format.html { render :action => 'show' }
+        format.xml  { render :xml => @user.errors, :status => :unprocessable_entity }
+      end    
+    end
   end
 
   def new
   end
   
   def create
-    params[:user] ||= {}
     @user.attributes = params[:user]
     @user.username = params[:user][:username]
     @user.email = params[:user][:email]    
@@ -93,7 +101,12 @@ class AccountsController < ApplicationController
     end
 
     def user_is_public?
-      redirect_to home_path unless User.current.public?
+      redirect_to root_path unless User.current.public?
+    end
+    
+    def assert_user_parameter
+      params[:user] = {} unless params[:user].is_a?(Hash)
+      true
     end
 
     def new_user
@@ -157,4 +170,8 @@ class AccountsController < ApplicationController
       raise ::ActionController::UnknownAction, 'Action is hidden', caller
     end  
 
+    def user_xml
+      @user.to_xml(:merge => {:only => [:email, :time_zone]})      
+    end
+  
 end

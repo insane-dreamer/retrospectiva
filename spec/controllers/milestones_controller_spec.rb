@@ -10,6 +10,7 @@ describe MilestonesController do
 
   describe "handling GET /milestones" do
     before(:each) do
+      @milestones.stub!(:in_default_order).and_return(@milestones)
       @milestones.stub!(:active_on).and_return(@milestones)
       @milestones.stub!(:paginate).and_return(@milestones)
     end
@@ -23,11 +24,10 @@ describe MilestonesController do
     describe 'by default' do
       
       it "should find active milestones" do
+        @milestones.should_receive(:in_default_order).with().and_return(@milestones)
         @milestones.should_receive(:active_on).with(Date.today).and_return(@milestones)
         @milestones.should_receive(:paginate).with(
-          :per_page=>nil, 
-          :page=>nil, 
-          :order => Milestone.default_order, 
+          :per_page=>nil, :total_entries=>nil, :page=>nil, 
           :include => {:tickets => :status}
         ).and_return(@milestones)
         do_get
@@ -40,9 +40,7 @@ describe MilestonesController do
       it "should find all milestones" do
         @milestones.should_not_receive(:active_on)
         @milestones.should_receive(:paginate).with(
-          :per_page=>nil, 
-          :page=>nil, 
-          :order => Milestone.default_order, 
+          :per_page=>nil, :total_entries=>nil, :page=>nil, 
           :include => {:tickets => :status}
         ).and_return(@milestones)
         do_get :completed => '1'
@@ -58,6 +56,7 @@ describe MilestonesController do
 
   describe "handling GET /milestones.rss" do
     before(:each) do
+      @milestones.stub!(:in_default_order).and_return(@milestones)
       @milestones.stub!(:active_on).and_return(@milestones)
       @milestones.stub!(:paginate).and_return(@milestones)
       Milestone.stub!(:to_rss).and_return("RSS")
@@ -75,16 +74,14 @@ describe MilestonesController do
     it "should find milestones" do
       @milestones.should_receive(:active_on).with(Date.today).and_return(@milestones)
       @milestones.should_receive(:paginate).with(
-        :per_page=>10, 
-        :page=>1, 
-        :order => Milestone.default_order, 
+        :per_page=>10, :total_entries=>10, :page=>1, 
         :include => {:tickets => :status}
       ).and_return(@milestones)
       do_get
     end
 
     it "should render the found milestones as RSS" do
-      Milestone.should_receive(:to_rss).with(@milestones).and_return("RSS")
+      Milestone.should_receive(:to_rss).with(@milestones, {}).and_return("RSS")
       do_get :completed => '1'
       response.body.should == "RSS"
       response.content_type.should == "application/rss+xml"
@@ -166,7 +163,7 @@ describe MilestonesController do
 
       it "should redirect to the milestones list" do
         do_post
-        response.should redirect_to(project_milestones_url(@project))
+        response.should redirect_to(project_milestones_path(@project))
       end
       
     end
@@ -229,15 +226,21 @@ describe MilestonesController do
   describe "handling DELETE /milestones/1" do
 
     before(:each) do
-      @milestones.stub!(:destroy).and_return(true)
+      @milestone = mock_model(Milestone, :to_param => "1", :destroy => true)
+      @milestones.stub!(:find).and_return(@milestone)
     end
   
     def do_delete
       delete :destroy, :project_id => @project.to_param, :id => "1"
     end
 
-    it "should find and destroy the milestone requested" do
-      @milestones.should_receive(:destroy).with("1").and_return(true)
+    it "should find the milestone" do
+      @milestones.should_receive(:find).with("1").and_return(@milestone)
+      do_delete
+    end
+
+    it "should destroy the milestone" do
+      @milestone.should_receive(:destroy)
       do_delete
     end
   

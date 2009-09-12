@@ -20,9 +20,9 @@ class BlogPost < ActiveRecord::Base
   retro_previewable do |r|
     r.channel do |c, options|
       project = options[:project] || Project.current
-      c.name = 'blog_posts'
-      c.title = _('Blog Posts')
-      c.description = _('Blog Posts for {{project}}', :project => project.name)
+      c.name = 'blog'
+      c.title = _('Blog')
+      c.description = _('Blog for {{project}}', :project => project.name)
       c.link = c.route(:project_blog_posts_url, project)
     end
     r.item do |i, blog_post, options|
@@ -90,6 +90,24 @@ class BlogPost < ActiveRecord::Base
 
       paragraphs.join("\n\n")
     end
+  end
+
+  def to_xml_with_comments
+    to_xml do |xml|
+      xml.comments :type => 'array' do
+        comments.each do |comment|          
+          comment.to_xml :builder => xml, :skip_instruct => true, :root => 'comment', :type => comment.class.name
+        end
+      end       
+    end
+  end
+
+  def serialize_only
+    [:id, :title, :content, :created_at]
+  end
+
+  def serialize_including
+    [:user]
   end
 
   protected

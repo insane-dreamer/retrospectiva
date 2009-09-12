@@ -1,5 +1,5 @@
 #--
-# Copyright (C) 2008 Dimitrij Denissenko
+# Copyright (C) 2009 Dimitrij Denissenko
 # Please read LICENSE document for more information.
 #++
 class WikiController < ProjectAreaController
@@ -25,13 +25,23 @@ class WikiController < ProjectAreaController
   before_filter :find_or_build_page, :only => [:edit, :update]
   
   def index
-    @pages = Project.current.wiki_pages.paginate :page => params[:page], 
-      :order => params[:order] == 'recent' ? 'wiki_pages.updated_at DESC' : 'wiki_pages.title' 
+    @pages = Project.current.wiki_pages.paginate options_for_paginate 
+
+    respond_to do |format|
+      format.html
+      format.rss  { render_rss(WikiPage, @pages) }
+      format.xml  { render :xml => @pages.to_xml }
+    end
   end
   
   def show
     version = find_version(params[:version])
     @wiki_page = version if version
+
+    respond_to do |format|
+      format.html
+      format.xml  { render :xml => @wiki_page.to_xml(:root => 'wiki_page') }
+    end  
   end
   
   def edit
@@ -41,14 +51,19 @@ class WikiController < ProjectAreaController
   end
   
   def update
-    if @wiki_page.update_attributes(params[:wiki_page])
-      flash[:notice] = @wiki_page.number == 1 ?
-         _('Page was successfully created.') :
-         _('Page was successfully updated.')
-      cache_user_attributes!(:name => @wiki_page.author)
-      redirect_to project_wiki_page_path(Project.current, @wiki_page)
-    else
-      render :action => 'edit'
+    respond_to do |format|
+      if @wiki_page.update_attributes(params[:wiki_page])
+        flash[:notice] = @wiki_page.number == 1 ?
+           _('Page was successfully created.') :
+           _('Page was successfully updated.')
+        cache_user_attributes!(:name => @wiki_page.author)
+        
+        format.html { redirect_to [Project.current, @wiki_page] }
+        format.xml  { head :ok }
+      else
+        format.html { render :action => "edit" }
+        format.xml  { render :xml => @wiki_page.errors, :status => :unprocessable_entity }
+      end
     end
   end
   
@@ -57,17 +72,26 @@ class WikiController < ProjectAreaController
 
   def update_title
     @wiki_page.title = params[:title]
-    if @wiki_page.save
-      flash[:notice] = _('Page was successfully updated.')
-      redirect_to project_wiki_page_path(Project.current, @wiki_page)
-    else        
-      render :action => 'rename'
+
+    respond_to do |format|
+      if @wiki_page.save
+        flash[:notice] = _('Page was successfully updated.')
+        format.html { redirect_to [Project.current, @wiki_page] }
+        format.xml  { head :ok }
+      else        
+        format.html { render :action => "rename" }
+        format.xml  { render :xml => @wiki_page.errors, :status => :unprocessable_entity }
+      end
     end
   end
   
   def destroy
     @wiki_page.destroy
-    redirect_to project_wiki_page_path(Project.current, Project.current.wiki_title)
+
+    respond_to do |format|
+      format.html { redirect_to project_wiki_page_path(Project.current, Project.current.wiki_title) }
+      format.xml  { head :ok }
+    end
   end
   
   protected
@@ -88,6 +112,17 @@ class WikiController < ProjectAreaController
 
     def find_or_build_page
       @wiki_page = Project.current.wiki_pages.find_or_build(params[:id])     
+    end
+
+    def options_for_paginate
+      { :page => ( request.format.rss? ? 1 : params[:page] ), 
+        :per_page => ( request.format.rss? ? 10 : nil ),
+        :total_entries => ( request.format.rss? ? 10 : nil ),
+        :order => pagination_order }
+    end
+        
+    def pagination_order
+      request.format.rss? || params[:order] == 'recent' ? 'wiki_pages.updated_at DESC' : 'wiki_pages.title'
     end
 
   private

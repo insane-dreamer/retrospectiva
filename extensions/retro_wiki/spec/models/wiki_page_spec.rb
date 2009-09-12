@@ -110,11 +110,11 @@ describe WikiPage do
       @page = @project.wiki_pages.new :content => 'Content', :author => 'Me'
       @page.title = 'Another Title'
     end
-    
+
     it 'should update the page-title cache of the parent project' do
-      @project.existing_wiki_page_titles.should == ['Intro', 'New Page']
+      @project.existing_wiki_page_titles.should == ['Retrospectiva', 'New Page']
       @page.save.should be(true)
-      @project.reload.existing_wiki_page_titles.should == ['Intro', 'New Page', 'Another Title']
+      @project.reload.existing_wiki_page_titles.should == ['Retrospectiva', 'New Page', 'Another Title']
     end    
     
   end
@@ -126,9 +126,9 @@ describe WikiPage do
     end
     
     it 'should update the page-title cache of the parent project' do
-      @project.existing_wiki_page_titles.should == ['Intro', 'New Page']
-      wiki_pages(:intro).destroy.should_not be(false)
-      @project.reload.existing_wiki_page_titles.should == ['New Page']
+      @project.existing_wiki_page_titles.should == ['Retrospectiva', 'New Page']
+      wiki_pages(:new).destroy.should_not be(false)
+      @project.reload.existing_wiki_page_titles.should == ['Retrospectiva']
     end    
     
   end
@@ -185,14 +185,59 @@ describe WikiPage do
       end
       
       it 'should store the old version' do
-        @project.existing_wiki_page_titles.should == ['Intro', 'New Page']
+        @project.existing_wiki_page_titles.should == ['Retrospectiva', 'New Page']
         @page.save.should be(true)
-        @project.reload.existing_wiki_page_titles.should == ['Intro', 'Renamed']
+        @project.reload.existing_wiki_page_titles.should == ['Retrospectiva', 'Renamed']
       end
       
     end
-    
-    
+        
+  end
+
+  describe 'the class' do
+
+    describe 'full text search' do
+
+      it 'should find records matching the milestone name and description' do
+        WikiPage.full_text_search('content').should have(2).records
+        WikiPage.full_text_search('latest').should have(1).record
+      end
+
+    end
+
+    describe 'previewable' do
+
+      describe 'channel' do
+        before do
+          @channel = WikiPage.previewable.channel(:project => projects(:retro))
+        end
+
+        it 'should have correct attributes' do
+          @channel.name.should == 'wiki'
+          @channel.title.should == 'Wiki'
+          @channel.description.should == 'Wiki for Retrospectiva'
+          @channel.link.should == 'http://test.host/projects/retrospectiva/wiki'
+        end
+
+      end
+
+      describe 'items' do
+
+        before do
+          @wiki_page = wiki_pages(:intro)
+          @item = @wiki_page.previewable(:project => projects(:retro))
+        end
+
+        it 'should have correct attributes' do
+          @item.title.should == @wiki_page.title
+          @item.description.should == @wiki_page.content
+          @item.link.should == "http://test.host/projects/retrospectiva/wiki/Intro"
+          @item.date.should == @wiki_page.updated_at
+        end
+
+      end
+
+    end
   end
   
   

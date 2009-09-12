@@ -20,6 +20,8 @@ module RetroI18n
     end
     
     def save(patterns, options = {})
+      yaml = Ya2YAML.new :syck_compatible => true    
+      
       File.open(path, 'w+') do |file|
         file << "#{locale}:\n  application:\n"
         
@@ -28,14 +30,14 @@ module RetroI18n
           elsif references.blank?
             file << "    # Unknown\n"
           else
-            file << "    # Missing\n" unless t(string)
+            file << "    # Missing\n" if t(string).blank?
             references.uniq.sort.each do |reference|
               file << "    # #{reference}\n"
             end
-          end
-          file << "    #{string.inspect}: #{t(string) ? t(string).inspect : ''}\n\n"
+          end          
+          file << "    #{yaml.emit_string(string, 3)}: #{t(string).blank? ? nil : yaml.emit_string(t(string), 3)}\n\n"
         end
-      end && true    
+      end && true
     end
 
     def translations
