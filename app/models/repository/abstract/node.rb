@@ -3,6 +3,8 @@
 # Please read LICENSE document for more information.
 #++
 class Repository::Abstract::Node
+  extend ActiveSupport::Memoizable
+
   class InvalidPath < StandardError
   end
   class InvalidPathForRevision < StandardError
@@ -16,6 +18,11 @@ class Repository::Abstract::Node
     @repos = repos
     @path  = path
     @selected_revision = selected_revision.to_s
+  end
+
+  # Returns the cache key, which is used to generate the ETag
+  def cache_key
+    "#{User.current.id}:#{repos.id}:#{path}:#{revision}"
   end
 
   # Returns the last actual revision for the current node
