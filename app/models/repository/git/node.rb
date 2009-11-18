@@ -4,13 +4,14 @@
 #++
 class Repository::Git::Node < Repository::Abstract::Node
  
-  def initialize(repos, path, selected_rev = nil, skip_check = false)
+  def initialize(repos, path, selected_rev = nil, skip_check = false, blob_info = nil)
     super(repos, sanitize_path(path), selected_rev || repos.latest_revision)
+    @blob_info = blob_info
     raise_invalid_node_error! unless skip_check || exists?
   end
 
   def revision
-    repos.repo.rev_list(selected_revision, '--', path, :max_count => 1).first 
+    root? ? repos.latest_revision : repos.repo.rev_list(selected_revision, '--', path, :max_count => 1).first 
   end
   memoize :revision
 
@@ -34,12 +35,13 @@ class Repository::Git::Node < Repository::Abstract::Node
     return [] unless dir?
 
     node[:contents].map do |hash|
-      self.class.new(repos, hash[:path], selected_revision, true)
+      self.class.new(repos, hash[:path], selected_revision, true, hash[:type] == 'blob' ? hash : nil)
     end.compact.sort_by {|n| [n.content_code, n.name.downcase] }
   end
   memoize :sub_nodes
 
   def content
+    @content = true
     dir? ? nil : blob.contents
   end
 
@@ -48,7 +50,7 @@ class Repository::Git::Node < Repository::Abstract::Node
   end
 
   def size
-    dir? ? 0 : blob.size
+    dir? ? 0 : (@content ? blob.contents.size : blob.size)
   end
 
   def sub_node_count
@@ -78,7 +80,9 @@ class Repository::Git::Node < Repository::Abstract::Node
     
     def node
       if root?
-        { :sha => selected_revision, :type => 'tree', :contents => repos.repo.ls_tree(selected_revision) }
+        { :sha => selected_revision, :type => 'tree', :contents => sanitize_tree(repos.repo.ls_tree(selected_revision)) }
+      elsif @blob_info
+        @blob_info
       else
         tree = sanitize_tree(repos.repo.ls_tree(selected_revision, '--', path, File.join(path, '*'), :t => true))
         hash = tree.find {|i| i[:path] == path }
@@ -93,7 +97,7 @@ class Repository::Git::Node < Repository::Abstract::Node
     
     def sanitize_tree(tree)
       tree.select do |hash| 
-        hash.is_a?(Hash) and hash[:path].starts_with?(path)
+        hash.is_a?(Hash) and hash[:path].starts_with?(path) and ['blob', 'tree'].include?(hash[:type])
       end
     end
     

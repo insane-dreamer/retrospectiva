@@ -25,7 +25,7 @@ describe StoriesController do
 
     def it_assigns_the_story(method = :do_get)
       it "assigns sprint as @sprint" do
-        @stories.should_receive(:find).with('73').and_return(@story)
+        @stories.should_receive(:find).with('73', :include => :goal).and_return(@story)
         send(method)
         assigns[:story].should == @story
       end
@@ -49,11 +49,12 @@ describe StoriesController do
     @story.stub!(:comments).and_return(@comments)    
     @story.stub!(:progress_updates).and_return(@progress_updates)    
     @stories = [@story]
+    @stories.stub!(:in_default_order).and_return(@stories)
     @stories.stub!(:pending).and_return(@stories)
     @stories.stub!(:completed).and_return(@stories)
     @stories.stub!(:active).and_return(@stories)
     @stories.stub!(:all).and_return(@stories)
-    @stories.stub!(:find).with('73').and_return(@story)
+    @stories.stub!(:find).with('73', :include => :goal).and_return(@story)
     @stories.stub!(:new).and_return(@story)
     
     @sprint = mock_model(Sprint, :title => 'Sprint 1')
@@ -173,7 +174,7 @@ describe StoriesController do
 
     describe "with valid params" do
       
-      it "redirects to the created story" do
+      it "redirects to story index" do
         @story.should_receive(:save).and_return(true)
         do_post
         response.should redirect_to(project_milestone_sprint_stories_path(@project, @milestone, @sprint))
@@ -191,6 +192,63 @@ describe StoriesController do
 
   end
 
+
+  describe "GET edit" do
+    
+    def do_get
+      get :edit, :project_id => 'retro', :milestone_id => '1', :sprint_id => '37', :id => '73'
+    end
+
+    it_assigns_the_milestone
+    it_assigns_the_sprint
+    it_assigns_the_story
+
+    it 'renders the edit template' do
+      do_get
+      response.should render_template(:edit)        
+    end
+
+  end
+  
+  describe "PUT update" do
+    
+    before do
+      @story.stub!(:update_attributes).and_return(false)
+    end
+    
+    def do_put
+      put :update, :project_id => 'retro', :milestone_id => '1', :sprint_id => '37', :id => '73', :story => { 'attribute' => 'value' }
+    end
+
+    it_assigns_the_milestone(:do_put)
+    it_assigns_the_sprint(:do_put)
+    it_assigns_the_story(:do_put)
+
+    it 'updates the story' do
+      @story.should_receive(:update_attributes).with({ 'attribute' => 'value' })
+      do_put
+    end
+
+    describe "with valid params" do
+      
+      it "redirects to story index" do
+        @story.should_receive(:update_attributes).and_return(true)
+        do_put
+        response.should redirect_to(project_milestone_sprint_stories_path(@project, @milestone, @sprint))
+      end
+    end
+
+    describe "with invalid params" do
+
+      it "re-renders the 'edit' template" do
+        do_put
+        response.should render_template(:edit)
+      end
+    
+    end
+
+  end
+  
   
   [:accept, :complete, :reopen].each do |action_name|
 

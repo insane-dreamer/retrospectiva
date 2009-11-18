@@ -51,6 +51,19 @@ describe TinyGit::Repo do
     new_repo.cat_file('commit', 'ae62392').size.should == 320
     new_repo.cat_file('commit', 'ae62392').should =~ /\n{1}\Z/m
   end
+
+  it 'should catch and re-raise GIT errors' do
+    msg = "[128] fatal: Not a valid object name 9999999 (/usr/bin/env git --git-dir=\"./spec/test_rep/.git\" cat-file -s \"9999999\")" 
+    lambda { new_repo.cat_file('9999999', :s => true) }.should raise_error(TinyGit::GitExecuteError, msg)
+  end  
+
+  it 'should handle unusual file name variations' do
+    tree = new_repo.ls_tree 'HEAD', '--', 'res/this file\'s name is (a "little") strange.txt' 
+    tree.should == [{:type=>"blob", :mode=>"100644", :path=>'res/this file\'s name is (a "little") strange.txt', :sha=>"bb590f885cfa35e3a4bdb3396da8b14b4904d045"}]
+
+    tree = new_repo.ls_tree 'HEAD', '--', 'res/another \ one.txt'
+    tree.should == [{:type=>"blob", :mode=>"100644", :path=> 'res/another \ one.txt', :sha=>"bb590f885cfa35e3a4bdb3396da8b14b4904d045"}]
+  end
   
 end
 

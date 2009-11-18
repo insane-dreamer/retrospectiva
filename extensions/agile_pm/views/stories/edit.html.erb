@@ -1,0 +1,18 @@
+<% @page_title = _('Stories') -%>
+<% slim_page -%>
+
+<div class="agile-pm">
+  
+  <% plus_form_for @story, :url => story_path(@story) do |f| -%>  
+    <%= f.info h(@story.title) %>
+    <%= f.error_messages %>
+
+    <%= render :partial => 'form', :locals => { :f => f } %>
+
+    <fieldset>
+      <%= submit_tag _('Update') %> | <%= link_to _('Cancel'), stories_path %>
+    </fieldset>
+  <% end -%>   
+
+</div>
+  

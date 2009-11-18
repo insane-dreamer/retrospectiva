@@ -6,7 +6,7 @@ describe "/stories/new.html.erb" do
     @project = mock_current_project!
 
     @sprint = assigns[:sprint] = stub_model(Sprint, :goals => [stub_model(Goal)])
-    @story  = assigns[:story]  = stub_model(Story, :stub => @goals)        
+    @story  = assigns[:story]  = stub_model(Story)        
     
     template.stub!(:permitted?).and_return(true)
     template.stub!(:stories_path).and_return('/path/to/stories')
